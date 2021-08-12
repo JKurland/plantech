@@ -25,9 +25,20 @@ struct swap_threads {
     std::thread* new_thread;
 };
 
+struct swap_threads_throw {
+    bool await_ready() {return false;}
+    void await_suspend(std::coroutine_handle<> h) noexcept {
+        *new_thread = std::thread([=]{
+            h.resume();
+        });
+    }
+    int await_resume() {throw 2;}
+    std::thread* new_thread;
+};
+
 
 TEST_F(SingleThreadedThreadPoolTest, should_run_something) {
-    auto ret = run(pool, []() -> Task<int> {
+    auto ret = run_sync(pool, []() -> Task<int> {
         co_return 1;
     });
     ASSERT_EQ(ret, 1);
@@ -38,7 +49,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_run_something_nested) {
         co_return 2;
     };
 
-    auto ret = run(pool, [&]() -> Task<int> {
+    auto ret = run_sync(pool, [&]() -> Task<int> {
         int ans = co_await nested();
         co_return ans;
     });
@@ -57,14 +68,41 @@ TEST_F(SingleThreadedThreadPoolTest, should_always_run_on_the_thread_pool_thread
         co_return 1;
     };
 
-    run(pool, coro);
+    run_sync(pool, coro);
     new_thread.join();
     ASSERT_EQ(initial_thread, final_thread);
 }
 
+TEST_F(SingleThreadedThreadPoolTest, should_always_run_on_the_thread_pool_thread_nested) {
+    std::thread new_thread;
+    std::thread::id thread1;
+    std::thread::id thread2;
+    std::thread::id thread3;
+    std::thread::id thread4;
+
+    auto nested = [&]() -> Task<> {
+        thread2 = std::this_thread::get_id();
+        co_await swap_threads{&new_thread};
+        thread3 = std::this_thread::get_id();
+    };
+
+    auto coro = [&]() -> Task<int> {
+        thread1 = std::this_thread::get_id();
+        co_await nested();
+        thread4 = std::this_thread::get_id();
+        co_return 1;
+    };
+
+    run_sync(pool, coro);
+    new_thread.join();
+    ASSERT_EQ(thread1, thread2);
+    ASSERT_EQ(thread1, thread3);
+    ASSERT_EQ(thread1, thread4);
+}
+
 TEST_F(SingleThreadedThreadPoolTest, should_work_with_void_return) {
     bool ran = false;
-    run(pool,  [&]() -> Task<> {
+    run_sync(pool,  [&]() -> Task<> {
         ran = true;
         co_return;
     });
@@ -78,7 +116,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_with_void_retur
         co_return;
     };
 
-    ASSERT_THROW(run(pool, coro), int);
+    ASSERT_THROW(run_sync(pool, coro), int);
 }
 
 
@@ -88,7 +126,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_with_non_void_r
         co_return 2.3;
     };
 
-    ASSERT_THROW(run(pool, coro), int);
+    ASSERT_THROW(run_sync(pool, coro), int);
 }
 
 
@@ -103,7 +141,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_multiple_levels
         co_return 1;
     };
 
-    ASSERT_THROW(run(pool, coro), int);
+    ASSERT_THROW(run_sync(pool, coro), int);
 }
 
 TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_multiple_levels_multiple_co_awaits) {
@@ -122,7 +160,37 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_multiple_levels
         co_return 1;
     };
 
-    ASSERT_THROW(run(pool, coro), int);
+    ASSERT_THROW(run_sync(pool, coro), int);
     ASSERT_EQ(past_non_throwing_co_await, true);
 }
 
+
+TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_from_wrapped_tasks) {
+    std::thread t;
+    std::thread::id start;
+    std::thread::id after;
+
+    auto coro = [&]() -> Task<> {
+        start = std::this_thread::get_id();
+        try {
+            co_await swap_threads_throw{&t};
+        } catch (...) {
+            after = std::this_thread::get_id();
+            throw;
+        }
+    };
+
+    ASSERT_THROW(run_sync(pool, coro), int);
+    ASSERT_EQ(start, after);
+    t.join();
+}
+
+
+TEST_F(SingleThreadedThreadPoolTest, run_async) {
+    auto ret = run_async(pool, []() -> Task<int> {
+        co_return 1;
+    });
+
+    ret.wait();
+    ASSERT_EQ(std::move(ret).get(), 1);
+}

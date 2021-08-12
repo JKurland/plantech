@@ -46,11 +46,19 @@ namespace promise::detail {
             }
 
             InnerT await_resume() {
-                if constexpr (MoveOnResume) {
-                    return std::move(promise->return_value_.value());
-                } else {
-                    return promise->return_value_.value();
+                switch (promise->return_value_.index()) {
+                    case 1: {
+                        if constexpr (MoveOnResume) {
+                            return std::move(std::get<1>(promise->return_value_));
+                        } else {
+                            return std::get<1>(promise->return_value_);
+                        }
+                    }
+                    case 2: {
+                        std::rethrow_exception(std::get<2>(promise->return_value_));
+                    }
                 }
+                assert(false);
             }
             promise_type* promise;
         };
@@ -84,21 +92,20 @@ namespace promise::detail {
                 return {this};
             }
 
-            void return_value(InnerT&& v) {
-                return_value_.emplace(std::move(v));
+            template<std::convertible_to<InnerT> V>
+            void return_value(V&& v) {
+                return_value_.template emplace<1>(std::forward<V>(v));
                 void* expected = nullptr;
                 continuation.compare_exchange_strong(expected, this);
             };
 
-            void return_value(const InnerT& v) {
-                return_value_.emplace(v);
+            void unhandled_exception() {
+                return_value_.template emplace<2>(std::current_exception());
                 void* expected = nullptr;
                 continuation.compare_exchange_strong(expected, this);
-            };
+            }
 
-            void unhandled_exception() {}
-
-            std::optional<InnerT> return_value_;
+            std::variant<std::monostate, InnerT, std::exception_ptr> return_value_;
             CoroutineThreadPool* pool;
             std::atomic<void*> continuation = nullptr;
         };
@@ -306,6 +313,7 @@ namespace promise::detail {
 
         promise_type* promise;
     };
+
 
 }
 
@@ -545,7 +553,7 @@ public:
 
 
 template<typename F, typename...ArgTs>
-auto run(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
+auto run_sync(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
     using invoke_result = std::invoke_result_t<F&&, ArgTs&&...>;
     using T = promise::detail::ResultT<invoke_result>;
 
@@ -565,6 +573,24 @@ auto run(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
         return std::move(coro).get();
     }
 }
+
+template<typename F, typename...ArgTs>
+auto run_async(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
+    using invoke_result = std::invoke_result_t<F&&, ArgTs&&...>;
+    using T = promise::detail::ResultT<invoke_result>;
+
+    promise::detail::run_sync coro = [&](CoroutineThreadPool& pool) -> promise::detail::run_sync<T> {
+        auto x = std::invoke(std::forward<F>(f), std::forward<ArgTs>(args)...);
+        if constexpr (std::is_void_v<T>) {
+            co_await std::move(x);
+        } else {
+            co_return co_await std::move(x);
+        }
+    }(pool);
+
+    return coro;
+}
+
 
 
 }
