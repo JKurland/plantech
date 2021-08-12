@@ -62,8 +62,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_always_run_on_the_thread_pool_thread
     ASSERT_EQ(initial_thread, final_thread);
 }
 
-
-TEST_F(SingleThreadedThreadPoolTest, should_work_with_void) {
+TEST_F(SingleThreadedThreadPoolTest, should_work_with_void_return) {
     bool ran = false;
     run(pool,  [&]() -> Task<> {
         ran = true;
@@ -72,3 +71,58 @@ TEST_F(SingleThreadedThreadPoolTest, should_work_with_void) {
 
     ASSERT_TRUE(ran);
 }
+
+TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_with_void_return) {
+    auto coro = []() -> Task<> {
+        throw 2;
+        co_return;
+    };
+
+    ASSERT_THROW(run(pool, coro), int);
+}
+
+
+TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_with_non_void_return) {
+    auto coro = []() -> Task<float> {
+        throw 2;
+        co_return 2.3;
+    };
+
+    ASSERT_THROW(run(pool, coro), int);
+}
+
+
+TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_multiple_levels) {
+    auto nested = []() -> Task<> {
+        throw 2;
+        co_return;
+    };
+
+    auto coro = [&]() -> Task<int> {
+        co_await nested();
+        co_return 1;
+    };
+
+    ASSERT_THROW(run(pool, coro), int);
+}
+
+TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_multiple_levels_multiple_co_awaits) {
+    auto nested = [](bool throw_) -> Task<> {
+        if (throw_) {
+            throw 2;
+        }
+        co_return;
+    };
+
+    bool past_non_throwing_co_await = false;
+    auto coro = [&]() -> Task<int> {
+        co_await nested(false);
+        past_non_throwing_co_await = true;
+        co_await nested(true);
+        co_return 1;
+    };
+
+    ASSERT_THROW(run(pool, coro), int);
+    ASSERT_EQ(past_non_throwing_co_await, true);
+}
+

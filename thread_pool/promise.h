@@ -5,6 +5,10 @@
 #include <optional>
 #include <utility>
 #include <iostream>
+#include <cassert>
+#include <exception>
+#include <variant>
+#include <coroutine>
 
 namespace pt {
 
@@ -115,181 +119,195 @@ namespace promise::detail {
     };
 
 
+    template<typename T>
+    struct run_sync {
+        struct promise_type;
+
+        struct final_awaitable {
+            constexpr bool await_ready() const noexcept {
+                return false;
+            }
+
+            void await_suspend(std::coroutine_handle<>) noexcept {
+                {
+                    std::lock_guard l(promise->m);
+                    promise->finished = true;
+                }
+                promise->cv.notify_all();
+            }
+
+            constexpr void await_resume() const noexcept {
+            }
+
+            promise_type* promise;
+        };
+
+        struct initial_awaitable {
+            constexpr bool await_ready() const noexcept {
+                return false;
+            }
+
+            void await_suspend(std::coroutine_handle<> handle) {
+                promise->pool->push(handle);
+            }
+
+            constexpr void await_resume() const noexcept {
+            }
+
+            promise_type* promise;
+        };
+
+        struct promise_type {
+
+            template<typename ThisT>
+            promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
+
+
+            constexpr run_sync get_return_object() noexcept {
+                return {this};
+            }
+
+            // puts this coroutine on the thread pool
+            constexpr initial_awaitable initial_suspend() noexcept {
+                return {this};
+            }
+
+            // notifies that this coroutine has finished
+            constexpr final_awaitable final_suspend() noexcept {
+                return {this};
+            }
+
+            template<std::convertible_to<T> V>
+            void return_value(V&& v) {
+                return_value_.template emplace<1>(std::forward<V>(v));
+            }
+
+            void unhandled_exception() {
+                return_value_.template emplace<2>(std::current_exception());
+            }
+
+            std::condition_variable cv;
+            bool finished = false;
+            std::mutex m;
+            CoroutineThreadPool* pool;
+            std::variant<std::monostate, T, std::exception_ptr> return_value_;
+        };
+
+        void wait() {
+            std::unique_lock l(promise->m);
+            promise->cv.wait(l, [&]{return promise->finished;});
+        }
+
+        constexpr T&& get() && {
+            switch (promise->return_value_.index()) {
+                case 1: {
+                    return std::move(std::get<1>(promise->return_value_));
+                }
+                case 2: {
+                    std::rethrow_exception(std::get<2>(promise->return_value_));
+                }
+            }
+            assert(false);
+        }
+
+        ~run_sync() {
+            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        }
+
+        promise_type* promise;
+    };
+
+
+    template<>
+    struct run_sync<void> {
+        struct promise_type;
+
+        struct final_awaitable {
+            constexpr bool await_ready() const noexcept {
+                return false;
+            }
+
+            void await_suspend(std::coroutine_handle<>) noexcept {
+                {
+                    std::lock_guard l(promise->m);
+                    promise->finished = true;
+                }
+                promise->cv.notify_all();
+            }
+
+            constexpr void await_resume() const noexcept {
+            }
+
+            promise_type* promise;
+        };
+
+        struct initial_awaitable {
+            constexpr bool await_ready() const noexcept {
+                return false;
+            }
+
+            void await_suspend(std::coroutine_handle<> handle) {
+                promise->pool->push(handle);
+            }
+
+            constexpr void await_resume() const noexcept {
+            }
+
+            promise_type* promise;
+        };
+
+        struct promise_type {
+
+            template<typename ThisT>
+            promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
+
+
+            run_sync get_return_object() noexcept {
+                return {this};
+            }
+
+            // puts this coroutine on the thread pool
+            constexpr initial_awaitable initial_suspend() noexcept {
+                return {this};
+            }
+
+            // notifies that this coroutine has finished
+            constexpr final_awaitable final_suspend() noexcept {
+                return {this};
+            }
+
+            void return_void() {}
+
+            void unhandled_exception() {
+                exception = std::current_exception();
+            }
+
+            std::condition_variable cv;
+            bool finished = false;
+            std::mutex m;
+            CoroutineThreadPool* pool;
+            std::exception_ptr exception = nullptr;
+        };
+
+        void wait() {
+            std::unique_lock l(promise->m);
+            promise->cv.wait(l, [&]{return promise->finished;});
+        }
+
+        void get() {
+            if (promise->exception) {
+                std::rethrow_exception(promise->exception);
+            }
+        }
+
+        ~run_sync() {
+            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        }
+
+        promise_type* promise;
+    };
+
 }
-
-template<typename T>
-struct run_sync {
-    struct promise_type;
-
-    struct final_awaitable {
-        constexpr bool await_ready() const noexcept {
-            return false;
-        }
-
-        void await_suspend(std::coroutine_handle<>) noexcept {
-            {
-                std::lock_guard l(promise->m);
-                promise->finished = true;
-            }
-            promise->cv.notify_all();
-        }
-
-        constexpr void await_resume() const noexcept {
-        }
-
-        promise_type* promise;
-    };
-
-    struct initial_awaitable {
-        constexpr bool await_ready() const noexcept {
-            return false;
-        }
-
-        void await_suspend(std::coroutine_handle<> handle) {
-            promise->pool->push(handle);
-        }
-
-        constexpr void await_resume() const noexcept {
-        }
-
-        promise_type* promise;
-    };
-
-    struct promise_type {
-
-        template<typename ThisT>
-        promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
-
-
-        constexpr run_sync get_return_object() noexcept {
-            return {this};
-        }
-
-        // puts this coroutine on the thread pool
-        constexpr initial_awaitable initial_suspend() noexcept {
-            return {this};
-        }
-
-        // notifies that this coroutine has finished
-        constexpr final_awaitable final_suspend() noexcept {
-            return {this};
-        }
-
-        void return_value(T&& t) {
-            return_value_.emplace(std::move(t));
-        }
-
-        void return_value(const T& t) {
-            return_value_.emplace(t);
-        }
-
-        void unhandled_exception() {
-        }
-
-        std::condition_variable cv;
-        bool finished = false;
-        std::mutex m;
-        CoroutineThreadPool* pool;
-        std::optional<T> return_value_;
-    };
-
-    void wait() {
-        std::unique_lock l(promise->m);
-        promise->cv.wait(l, [&]{return promise->finished;});
-    }
-
-    constexpr T&& get() && {
-        return std::move(promise->return_value_.value());
-    }
-
-    ~run_sync() {
-        std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
-    }
-
-    promise_type* promise;
-};
-
-
-template<>
-struct run_sync<void> {
-    struct promise_type;
-
-    struct final_awaitable {
-        constexpr bool await_ready() const noexcept {
-            return false;
-        }
-
-        void await_suspend(std::coroutine_handle<>) noexcept {
-            {
-                std::lock_guard l(promise->m);
-                promise->finished = true;
-            }
-            promise->cv.notify_all();
-        }
-
-        constexpr void await_resume() const noexcept {
-        }
-
-        promise_type* promise;
-    };
-
-    struct initial_awaitable {
-        constexpr bool await_ready() const noexcept {
-            return false;
-        }
-
-        void await_suspend(std::coroutine_handle<> handle) {
-            promise->pool->push(handle);
-        }
-
-        constexpr void await_resume() const noexcept {
-        }
-
-        promise_type* promise;
-    };
-
-    struct promise_type {
-
-        template<typename ThisT>
-        promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
-
-
-        run_sync get_return_object() noexcept {
-            return {this};
-        }
-
-        // puts this coroutine on the thread pool
-        constexpr initial_awaitable initial_suspend() noexcept {
-            return {this};
-        }
-
-        // notifies that this coroutine has finished
-        constexpr final_awaitable final_suspend() noexcept {
-            return {this};
-        }
-
-        void return_void() {}
-
-        void unhandled_exception() {
-        }
-
-        std::condition_variable cv;
-        bool finished = false;
-        std::mutex m;
-        CoroutineThreadPool* pool;
-    };
-
-    void wait() {
-        std::unique_lock l(promise->m);
-        promise->cv.wait(l, [&]{return promise->finished;});
-    }
-
-    ~run_sync() {
-        std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
-    }
-
-    promise_type* promise;
-};
 
 
 
@@ -325,10 +343,12 @@ public:
 
         template<std::convertible_to<T> V>
         void return_value(V&& v) {
-            return_value_.emplace(std::forward<V>(v));
-        };
+            return_value_.template emplace<1>(std::forward<V>(v));
+        }
 
-        void unhandled_exception() {}
+        void unhandled_exception() {
+            return_value_.template emplace<2>(std::current_exception());
+        }
 
         template<typename U>
         Task<U>&& await_transform(Task<U>&& awaitable) {
@@ -363,7 +383,7 @@ public:
 
         std::coroutine_handle<> continuation;
         CoroutineThreadPool* pool;
-        std::optional<T> return_value_;
+        std::variant<std::monostate, T, std::exception_ptr> return_value_;
     };
 
     template<bool MoveOnResume>
@@ -380,11 +400,22 @@ public:
         }
 
         T await_resume() {
-            if constexpr (MoveOnResume) {
-                return std::move(promise->return_value_.value());
-            } else {
-                return promise->return_value_.value();
-            }
+            switch (promise->return_value_.index()) {
+                case 1: {
+                    if constexpr (MoveOnResume) {
+                        return std::move(std::get<1>(promise->return_value_));
+                    } else {
+                        return std::get<1>(promise->return_value_);
+                    }
+                }
+                case 2: {
+                    std::rethrow_exception(std::get<2>(promise->return_value_));
+                }
+                case 0: {
+                    break;
+                }
+            };
+            assert(false);
         }
 
         promise_type* promise;
@@ -436,10 +467,11 @@ public:
             return {this};
         }
 
-        void return_void() {
-        };
+        void return_void() {}
 
-        void unhandled_exception() {}
+        void unhandled_exception() {
+            exception = std::current_exception();
+        }
 
         template<typename U>
         Task<U>&& await_transform(Task<U>&& awaitable) {
@@ -474,6 +506,8 @@ public:
 
         std::coroutine_handle<> continuation;
         CoroutineThreadPool* pool;
+        std::exception_ptr exception = nullptr;
+
     };
 
     struct awaitable {
@@ -488,7 +522,11 @@ public:
             return std::coroutine_handle<promise_type>::from_promise(*promise);
         }
 
-        void await_resume() {}
+        void await_resume() {
+            if (promise->exception != nullptr) {
+                std::rethrow_exception(promise->exception);
+            }
+        }
 
         promise_type* promise;
     };
@@ -511,7 +549,7 @@ auto run(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
     using invoke_result = std::invoke_result_t<F&&, ArgTs&&...>;
     using T = promise::detail::ResultT<invoke_result>;
 
-    run_sync coro = [&](CoroutineThreadPool& pool) -> run_sync<T> {
+    promise::detail::run_sync coro = [&](CoroutineThreadPool& pool) -> promise::detail::run_sync<T> {
         auto x = std::invoke(std::forward<F>(f), std::forward<ArgTs>(args)...);
         if constexpr (std::is_void_v<T>) {
             co_await std::move(x);
@@ -521,6 +559,7 @@ auto run(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
     }(pool);
     coro.wait();
     if constexpr (std::is_void_v<T>) {
+        std::move(coro).get();
         return;
     } else {
         return std::move(coro).get();
