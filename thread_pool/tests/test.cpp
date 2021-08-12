@@ -61,3 +61,14 @@ TEST_F(SingleThreadedThreadPoolTest, should_always_run_on_the_thread_pool_thread
     new_thread.join();
     ASSERT_EQ(initial_thread, final_thread);
 }
+
+
+TEST_F(SingleThreadedThreadPoolTest, should_work_with_void) {
+    bool ran = false;
+    run(pool,  [&]() -> Task<> {
+        ran = true;
+        co_return;
+    });
+
+    ASSERT_TRUE(ran);
+}
