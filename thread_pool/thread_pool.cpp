@@ -2,7 +2,6 @@
 
 #include <coroutine>
 #include <thread>
-#include <iostream>
 
 namespace pt {
 using namespace thread_pool::detail;
@@ -30,6 +29,8 @@ FixedCoroutineThreadPool<1>::FixedCoroutineThreadPool() {
 }
 
 FixedCoroutineThreadPool<1>::~FixedCoroutineThreadPool() {
+    stop_and_join();
+
     while (!jobs.empty()) {
         Job j = jobs.pop();
         switch (j.type) {

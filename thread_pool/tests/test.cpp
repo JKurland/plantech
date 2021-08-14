@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <memory>
-#include <iostream>
+#include <future>
 
 #include "thread_pool/thread_pool.h"
 #include "thread_pool/promise.h"
@@ -187,10 +187,14 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_from_wrapped_ta
 
 
 TEST_F(SingleThreadedThreadPoolTest, run_async) {
-    auto ret = run_async(pool, []() -> Task<int> {
+    std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+    run_async(pool, [&]() -> Task<int> {
+        promise.set_value(3);
         co_return 1;
     });
 
-    ret.wait();
-    ASSERT_EQ(std::move(ret).get(), 1);
+    
+    ASSERT_EQ(future.get(), 3);
 }
+

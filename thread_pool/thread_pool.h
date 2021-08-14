@@ -32,7 +32,6 @@ class FixedCoroutineThreadPool<1>: public CoroutineThreadPool {
 public:
     FixedCoroutineThreadPool();
 
-    // destructing without joining will call terminate (i.e. like std::thread)
     ~FixedCoroutineThreadPool();
 
     FixedCoroutineThreadPool(const FixedCoroutineThreadPool&) = default;

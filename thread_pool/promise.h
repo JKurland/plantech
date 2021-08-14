@@ -4,11 +4,11 @@
 #include <concepts>
 #include <optional>
 #include <utility>
-#include <iostream>
 #include <cassert>
 #include <exception>
 #include <variant>
 #include <coroutine>
+#include <functional>
 
 namespace pt {
 
@@ -110,8 +110,23 @@ namespace promise::detail {
             std::atomic<void*> continuation = nullptr;
         };
 
+        wrapper_task(promise_type* promise): promise(promise) {}
+        wrapper_task(const wrapper_task&) = delete;
+        wrapper_task(wrapper_task&& o) {
+            promise = o.promise;
+            o.promise = nullptr;
+        }
+
+        wrapper_task& operator=(const wrapper_task&) = delete;
+        wrapper_task& operator=(wrapper_task&& o) {
+            std::swap(promise, o.promise);
+            return *this;
+        }
+
         ~wrapper_task() {
-            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+            if (promise) {
+                std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+            }
         }
 
         awaitable<false> operator co_await() & {
@@ -126,7 +141,7 @@ namespace promise::detail {
     };
 
 
-    template<typename T>
+    template<typename T, bool OwnHandle>
     struct run_sync {
         struct promise_type;
 
@@ -135,12 +150,15 @@ namespace promise::detail {
                 return false;
             }
 
-            void await_suspend(std::coroutine_handle<>) noexcept {
+            auto await_suspend(std::coroutine_handle<>) noexcept {
                 {
                     std::lock_guard l(promise->m);
                     promise->finished = true;
                 }
                 promise->cv.notify_all();
+                if constexpr (!OwnHandle) {
+                    return false;
+                }
             }
 
             constexpr void await_resume() const noexcept {
@@ -165,6 +183,9 @@ namespace promise::detail {
         };
 
         struct promise_type {
+
+            template<typename ThisT, typename AwaitableT>
+            promise_type(ThisT this_, CoroutineThreadPool& pool, AwaitableT&): pool(&pool) {}
 
             template<typename ThisT>
             promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
@@ -217,16 +238,38 @@ namespace promise::detail {
             assert(false);
         }
 
+        run_sync(promise_type* promise): promise(promise) {}
+
+        run_sync(const run_sync& o) = delete;
+        run_sync& operator=(const run_sync& o) = delete;
+
+        run_sync(run_sync&& o) {
+            promise = o.promise;
+            if constexpr (OwnHandle) {
+                o.promise = nullptr;
+            }
+        }
+
+        run_sync& operator=(run_sync&& o) {
+            std::swap(o.promise, promise);
+            return *this;
+        }
+
+
         ~run_sync() {
-            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+            if constexpr (OwnHandle) {
+                if (promise) {
+                    std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+                }
+            }
         }
 
         promise_type* promise;
     };
 
 
-    template<>
-    struct run_sync<void> {
+    template<bool OwnHandle>
+    struct run_sync<void, OwnHandle> {
         struct promise_type;
 
         struct final_awaitable {
@@ -234,12 +277,15 @@ namespace promise::detail {
                 return false;
             }
 
-            void await_suspend(std::coroutine_handle<>) noexcept {
+            auto await_suspend(std::coroutine_handle<>) noexcept {
                 {
                     std::lock_guard l(promise->m);
                     promise->finished = true;
                 }
                 promise->cv.notify_all();
+                if constexpr (!OwnHandle) {
+                    return false;
+                }
             }
 
             constexpr void await_resume() const noexcept {
@@ -257,13 +303,16 @@ namespace promise::detail {
                 promise->pool->push(handle);
             }
 
-            constexpr void await_resume() const noexcept {
+            void await_resume() const noexcept {
             }
 
             promise_type* promise;
         };
 
         struct promise_type {
+
+            template<typename ThisT, typename AwaitableT>
+            promise_type(ThisT this_, CoroutineThreadPool& pool, AwaitableT&): pool(&pool) {}
 
             template<typename ThisT>
             promise_type(ThisT this_, CoroutineThreadPool& pool): pool(&pool) {}
@@ -307,8 +356,30 @@ namespace promise::detail {
             }
         }
 
+        run_sync(promise_type* promise): promise(promise) {}
+
+        run_sync(const run_sync& o) = delete;
+        run_sync& operator=(const run_sync& o) = delete;
+
+        run_sync(run_sync&& o) {
+            promise = o.promise;
+            if constexpr (OwnHandle) {
+                o.promise = nullptr;
+            }
+        }
+
+        run_sync& operator=(run_sync&& o) {
+            std::swap(o.promise, promise);
+            return *this;
+        }
+
+
         ~run_sync() {
-            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+            if constexpr (OwnHandle) {
+                if (promise) {
+                    std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+                }
+            }
         }
 
         promise_type* promise;
@@ -437,8 +508,25 @@ public:
         return awaitable<true>{promise};
     }
 
+    Task(promise_type* promise): promise(promise) {}
+
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+
+    Task(Task&& o) {
+        promise = o.promise;
+        o.promise = nullptr;
+    }
+
+    Task& operator=(Task&& o) {
+        std::swap(o.promise, promise);
+        return *this;
+    }
+
     ~Task() {
-        std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        if (promise) {
+            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        }
     }
 
     promise_type* promise;
@@ -543,8 +631,25 @@ public:
         return awaitable{promise};
     }
 
+    Task(promise_type* promise): promise(promise) {}
+
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+
+    Task(Task&& o) {
+        promise = o.promise;
+        o.promise = nullptr;
+    }
+
+    Task& operator=(Task&& o) {
+        std::swap(o.promise, promise);
+        return *this;
+    }
+
     ~Task() {
-        std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        if (promise) {
+            std::coroutine_handle<promise_type>::from_promise(*promise).destroy();
+        }
     }
 
     promise_type* promise;
@@ -552,13 +657,13 @@ public:
 
 
 
-template<typename F, typename...ArgTs>
-auto run_sync(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
-    using invoke_result = std::invoke_result_t<F&&, ArgTs&&...>;
+template<typename F>
+auto run_sync(CoroutineThreadPool& pool, F&& f) {
+    using invoke_result = std::invoke_result_t<F&&>;
     using T = promise::detail::ResultT<invoke_result>;
 
-    promise::detail::run_sync coro = [&](CoroutineThreadPool& pool) -> promise::detail::run_sync<T> {
-        auto x = std::invoke(std::forward<F>(f), std::forward<ArgTs>(args)...);
+    promise::detail::run_sync coro = [&](CoroutineThreadPool& pool) -> promise::detail::run_sync<T, true> {
+        auto x = std::invoke(std::forward<F>(f));
         if constexpr (std::is_void_v<T>) {
             co_await std::move(x);
         } else {
@@ -574,21 +679,22 @@ auto run_sync(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
     }
 }
 
-template<typename F, typename...ArgTs>
-auto run_async(CoroutineThreadPool& pool, F&& f, ArgTs&&...args) {
-    using invoke_result = std::invoke_result_t<F&&, ArgTs&&...>;
-    using T = promise::detail::ResultT<invoke_result>;
+template<typename A>
+void run_awaitable_async(CoroutineThreadPool& pool, A a) {
+    using T = promise::detail::ResultT<A>;
 
-    promise::detail::run_sync coro = [&](CoroutineThreadPool& pool) -> promise::detail::run_sync<T> {
-        auto x = std::invoke(std::forward<F>(f), std::forward<ArgTs>(args)...);
+    [](CoroutineThreadPool& pool, A a) mutable -> promise::detail::run_sync<T, false> {
         if constexpr (std::is_void_v<T>) {
-            co_await std::move(x);
+            co_await std::move(a);
         } else {
-            co_return co_await std::move(x);
+            co_return co_await std::move(a);
         }
-    }(pool);
+    }(pool, std::move(a));
+}
 
-    return coro;
+template<typename F>
+void run_async(CoroutineThreadPool& pool, F f) {
+    run_awaitable_async(pool, f());
 }
 
 
