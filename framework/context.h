@@ -291,7 +291,7 @@ public:
         static_assert(indexes.size() == 1, "More than one handler for request R");
 
         if constexpr (indexes.size() == 1) {
-            auto& handler = handler_set.get(get_first(indexes));
+            auto& handler = handler_set.template get<context::detail::get_first(indexes)>();
             return handler.handle(*this, request);
         }
     }
@@ -312,6 +312,10 @@ public:
         cv.wait(l, [&]{return events_in_progress == 0;});
     }
 
+    template<Request R>
+    auto request_sync(const R& request) {
+        return run_awaitable_sync(thread_pool, (*this)(request));
+    }
 
     ~Context() {
         wait_for_all_events_to_finish();
@@ -330,8 +334,13 @@ template<typename...ArgTs>
 Context(ArgTs...) -> Context<std::decay_t<ArgTs>...>;
 
 
-#define EVENT(event_sig) \
+#define EVENT(event_type) \
 template<IsContext C> \
-Task<> handle(C& ctx, event_sig)
+Task<> handle(C& ctx, const event_type& event)
+
+
+#define REQUEST(request_type) \
+template<IsContext C> \
+Task<request_type::ResponseT> handle(C& ctx, const request_type& request)
 
 }
