@@ -4,6 +4,7 @@ cc_library(
     srcs = glob(["*.cpp"]),
     visibility = ["//visibility:public"],
     deps = ["@glfw//:glfw", "//core_messages", "//framework"],
-    linkopts = ["-ldl", "-lX11"]
+    linkopts = ["-ldl", "-lX11"],
+    copts = ["-Werror"],
 )
 

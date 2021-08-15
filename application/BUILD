@@ -3,4 +3,5 @@ cc_binary(
     srcs = glob(["*.cpp"]),
     visibility = ["//visibility:public"],
     deps = ["//core_messages", "//framework", "//window"],
+    copts = ["-Werror"],
 )

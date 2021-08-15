@@ -8,12 +8,13 @@ using namespace pt;
 struct Quitter {
     EVENT(QuitRequested) {
         if constexpr (ctx.template can_handle<ProgramEnd>()) {
-            co_await ctx.emit_await(ProgramEnd{});
+            co_await ctx.emit_await(pe);
         } 
         release_main.set_value(event.exit_status);
         co_return;
     }
 
+    ProgramEnd pe;
     std::promise<int> release_main;
 };
 
@@ -22,7 +23,7 @@ int main() {
     std::future<int> release_main_future = release_main.get_future();
 
     auto context = Context{
-        Quitter{std::move(release_main)},
+        Quitter{ProgramEnd{}, std::move(release_main)},
         Window(800, 600, "Application"),
     };
 

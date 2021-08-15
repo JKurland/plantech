@@ -6,6 +6,7 @@ cc_binary(
     deps = ["@glfw//:glfw", "@glm//:glm"],
     data = [":shaders"],
     linkopts = ["-lX11", "-ldl", "-pthread", "-lvulkan"],
+    copts = ["-Werror"],
 )
 
 spirv(
