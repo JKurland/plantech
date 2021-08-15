@@ -95,9 +95,7 @@ namespace context::detail {
         promise_type* promise;
     };
 
-    joinable make_joinable(Task<>&& task, std::atomic<int>& running_count, std::coroutine_handle<>& continuation) {
-        co_await task;
-    }
+    joinable make_joinable(Task<>&& task, std::atomic<int>& running_count, std::coroutine_handle<>& continuation);
 
     struct joined {
         struct promise_type;
@@ -315,6 +313,12 @@ public:
     template<Request R>
     auto request_sync(const R& request) {
         return run_awaitable_sync(thread_pool, (*this)(request));
+    }
+
+    template<Event E>
+    static constexpr bool can_handle() {
+        constexpr auto indexes = decltype(handler_set)::template true_indexes<context::detail::EventPred<Context, E>>();
+        return indexes.size() > 0;
     }
 
     ~Context() {

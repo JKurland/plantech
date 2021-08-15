@@ -3,6 +3,7 @@ cc_library(
     srcs = glob(["*.cpp"]),
     hdrs = glob(["*.h"]),
     deps = ["//thread_pool"],
+    visibility = ["//visibility:public"],
 )
 
 cc_test(
