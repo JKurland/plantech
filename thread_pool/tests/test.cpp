@@ -32,7 +32,7 @@ struct swap_threads_throw {
             h.resume();
         });
     }
-    int await_resume() {throw 2;}
+    void await_resume() {throw 2;}
     std::thread* new_thread;
 };
 
@@ -82,13 +82,17 @@ TEST_F(SingleThreadedThreadPoolTest, should_always_run_on_the_thread_pool_thread
 
     auto nested = [&]() -> Task<> {
         thread2 = std::this_thread::get_id();
+        std::cout << __LINE__ << std::endl;
         co_await swap_threads{&new_thread};
+        std::cout << __LINE__ << std::endl;
         thread3 = std::this_thread::get_id();
     };
 
     auto coro = [&]() -> Task<int> {
         thread1 = std::this_thread::get_id();
+        std::cout << __LINE__ << std::endl;
         co_await nested();
+        std::cout << __LINE__ << std::endl;
         thread4 = std::this_thread::get_id();
         co_return 1;
     };
@@ -184,6 +188,7 @@ TEST_F(SingleThreadedThreadPoolTest, should_propagate_exceptions_from_wrapped_ta
     ASSERT_EQ(start, after);
     t.join();
 }
+
 
 
 TEST_F(SingleThreadedThreadPoolTest, run_async) {

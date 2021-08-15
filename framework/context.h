@@ -225,7 +225,7 @@ namespace context::detail {
     };
 }
 
-template<typename T>
+template<typename...HandlerTs>
 class Context {
 public:
     template<typename...ArgTs>
@@ -238,7 +238,7 @@ public:
     Context& operator=(Context&&) = delete;
 
     template<Event E>
-    void emit(const E& event) {
+    void emit(E&& event) {
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
         static_assert(indexes.size() != 0, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
@@ -246,12 +246,42 @@ public:
             auto joined = handler_set.call_with(
                 indexes,
                 [&](auto&...handlers) {
-                    return context::detail::join(thread_pool, *this, event, handlers...);
+                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
                 }
             );
             run_awaitable_async(thread_pool, std::move(joined));
-        }
-        
+        }   
+    }
+
+    template<Event E>
+    void emit_sync(E&& event) {
+        constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
+        static_assert(indexes.size() != 0, "Nothing to handle event E");
+        if constexpr (indexes.size() != 0) {
+            start_event();
+            auto joined = handler_set.call_with(
+                indexes,
+                [&](auto&...handlers) {
+                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
+                }
+            );
+            run_awaitable_sync(thread_pool, std::move(joined));
+        }   
+    }
+
+    template<Event E>
+    auto emit_await(E&& event) {
+        constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
+        static_assert(indexes.size() != 0, "Nothing to handle event E");
+        if constexpr (indexes.size() != 0) {
+            start_event();
+            return handler_set.call_with(
+                indexes,
+                [&](auto&...handlers) {
+                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
+                }
+            );
+        }   
     }
 
     template<Request R>
@@ -287,7 +317,7 @@ public:
         wait_for_all_events_to_finish();
     }
 private:
-    T handler_set;
+    HandlerSet<HandlerTs...> handler_set;
 
     std::atomic<size_t> events_in_progress = 0;
     std::mutex m;
@@ -297,8 +327,11 @@ private:
 };
 
 template<typename...ArgTs>
-Context(ArgTs...) -> Context<HandlerSetFromArgs<ArgTs...>>;
+Context(ArgTs...) -> Context<std::decay_t<ArgTs>...>;
 
 
+#define EVENT(event_sig) \
+template<IsContext C> \
+Task<> handle(C& ctx, event_sig)
 
 }
