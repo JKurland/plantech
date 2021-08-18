@@ -4,7 +4,7 @@ cc_library(
     hdrs = glob(["*.h"]),
     visibility = ["//visibility:public"],
     linkopts = ["-pthread"],
-    deps = ["//queues"],
+    deps = ["//queues", "//utils"],
     copts = ["-Werror"],
 )
 

@@ -284,3 +284,26 @@ TEST_F(MpscQueueF, destructor_gets_called_copy_assign) {
 }
 
 
+TEST_F(MpscQueueF, wait_returns_nullopt_on_empty_queue) {
+    MpscQueue<int> q;
+    std::optional<int> r = q.wait_until(std::chrono::steady_clock::now());
+    ASSERT_FALSE(r.has_value());
+}
+
+TEST_F(MpscQueueF, wait_returns_object_on_non_empty_queue) {
+    MpscQueue<int> q;
+    q.push(2);
+    std::optional<int> r = q.wait_until(std::chrono::steady_clock::now());
+    ASSERT_TRUE(r.has_value());
+    ASSERT_EQ(*r, 2);
+}
+
+TEST_F(MpscQueueF, wait_until_calls_destructor) {
+    {
+        MpscQueue<D> q;
+        q.push(d());
+
+        std::optional<D> r = q.wait_until(std::chrono::steady_clock::now());
+    }
+    ASSERT_EQ(c_count, d_count);
+}

@@ -1,6 +1,8 @@
 #include "framework/context.h"
 #include "core_messages/control.h"
 #include "window/window.h"
+#include "rendering/vulkan.h"
+#include "rendering/framerate_driver.h"
 #include <future>
 
 using namespace pt;
@@ -25,6 +27,8 @@ int main() {
     auto context = Context{
         Quitter{ProgramEnd{}, std::move(release_main)},
         Window(800, 600, "Application"),
+        VulkanRendering(2),
+        FramerateDriver(60),
     };
 
     if constexpr (context.can_handle<ProgramStart>()) {

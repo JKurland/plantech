@@ -487,7 +487,10 @@ namespace promise::detail {
 
 }
 
-
+template<typename T>
+struct AwaitTransformPassThrough {
+    static constexpr bool pass_through = false;
+};
 
 template<typename T=void>
 class Task {
@@ -528,27 +531,12 @@ public:
             return_value_.template emplace<2>(std::current_exception());
         }
 
-        template<typename U>
-        Task<U>&& await_transform(Task<U>&& awaitable) {
-            return std::move(awaitable);
+        template<typename AwaitableT, typename = std::enable_if_t<AwaitTransformPassThrough<std::decay_t<AwaitableT>>::pass_through>>
+        decltype(auto) await_transform(AwaitableT&& awaitable) {
+            return std::forward<AwaitableT>(awaitable);
         }
 
-        template<typename U>
-        Task<U>& await_transform(Task<U>& awaitable) {
-            return awaitable;
-        }
-
-        template<typename U>
-        const Task<U>&& await_transform(const Task<U>&& awaitable) {
-            return std::move(awaitable);
-        }
-
-        template<typename U>
-        const Task<U>& await_transform(const Task<U>& awaitable) {
-            return awaitable;
-        }
-
-        template<typename AwaitableT>
+        template<typename AwaitableT, typename = std::enable_if_t<!AwaitTransformPassThrough<std::decay_t<AwaitableT>>::pass_through>>
         auto await_transform(AwaitableT&& awaitable) {
             using InnerT = promise::detail::ResultT<std::decay_t<AwaitableT>>;
 
@@ -666,27 +654,12 @@ public:
             exception = std::current_exception();
         }
 
-        template<typename U>
-        Task<U>&& await_transform(Task<U>&& awaitable) {
-            return std::move(awaitable);
+        template<typename AwaitableT, typename = std::enable_if_t<AwaitTransformPassThrough<std::decay_t<AwaitableT>>::pass_through>>
+        decltype(auto) await_transform(AwaitableT&& awaitable) {
+            return std::forward<AwaitableT>(awaitable);
         }
 
-        template<typename U>
-        Task<U>& await_transform(Task<U>& awaitable) {
-            return awaitable;
-        }
-
-        template<typename U>
-        const Task<U>&& await_transform(const Task<U>&& awaitable) {
-            return std::move(awaitable);
-        }
-
-        template<typename U>
-        const Task<U>& await_transform(const Task<U>& awaitable) {
-            return awaitable;
-        }
-
-        template<typename AwaitableT>
+        template<typename AwaitableT, typename = std::enable_if_t<!AwaitTransformPassThrough<std::decay_t<AwaitableT>>::pass_through>>
         auto await_transform(AwaitableT&& awaitable) {
             using InnerT = promise::detail::ResultT<std::decay_t<AwaitableT>>;
 
@@ -750,6 +723,11 @@ public:
     promise_type* promise;
 };
 
+
+template<typename T>
+struct AwaitTransformPassThrough<Task<T>> {
+    static constexpr bool pass_through = true;
+};
 
 
 template<typename A>

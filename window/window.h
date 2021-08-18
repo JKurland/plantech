@@ -1,4 +1,5 @@
 #pragma once
+#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
 #include <string_view>
@@ -7,6 +8,7 @@
 #include <memory>
 #include <type_traits>
 #include <functional>
+#include <iostream>
 
 #include "core_messages/control.h"
 #include "framework/context.h"
@@ -16,6 +18,18 @@ namespace pt {
 struct KeyPress {
     int glfw_key;
 };
+
+struct NewWindow {
+    GLFWwindow* window;
+};
+
+struct WindowResize {
+    int width;
+    int height;
+};
+
+struct WindowMinimised {};
+struct WindowRestored {};
 
 namespace window::detail {
     struct WindowDelete{
@@ -37,11 +51,17 @@ namespace window::detail {
 
     // callbacks is the GLFWwindow user pointer
     struct Callbacks {
-        std::function<std::remove_pointer_t<GLFWkeyfun>> key_cb; 
+        std::function<std::remove_pointer_t<GLFWkeyfun>> key_cb;
+        std::function<std::remove_pointer_t<GLFWframebuffersizefun>> resize_cb;
+
+        // does minimise and restore
+        std::function<std::remove_pointer_t<GLFWwindowiconifyfun>> iconify_cb;
     };
 
     // free functions forward the glfw callback to the callback in Callbacks
     void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods);
+    void resize_cb(GLFWwindow* window, int width, int height);
+    void iconify_cb(GLFWwindow* window, int iconified);
 }
 
 class Window {
@@ -55,10 +75,26 @@ public:
     Window& operator=(Window&&) = default;
 
     EVENT(ProgramStart) {
-        callbacks->key_cb = [&ctx](GLFWwindow* winow, int key, int scancode, int action, int mods) {
+        ctx.emit(NewWindow{window.get()});
+
+        callbacks->key_cb = [&ctx](GLFWwindow* window, int key, int scancode, int action, int mods) {
             ctx.emit(KeyPress{key});
         };
     
+        callbacks->resize_cb = [&ctx](GLFWwindow* window, int width, int height) {
+            ctx.emit(WindowResize{width, height});
+        };
+
+        callbacks->iconify_cb = [&ctx](GLFWwindow* window, int iconified) {
+            if (iconified == GL_TRUE) {
+                ctx.emit(WindowMinimised{});
+            } else if (iconified == GL_FALSE) {
+                ctx.emit(WindowRestored{});
+            } else {
+                assert(false);
+            }
+        };
+
         poll_thread = std::thread([&ctx, window=window.get(), stop_poll=stop_poll.get()]{
             while (!stop_poll->load()) {
                 glfwWaitEvents();

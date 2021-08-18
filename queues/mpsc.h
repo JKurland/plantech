@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <condition_variable>
 #include <bit>
+#include <chrono>
+#include <optional>
 
 namespace pt {
 
@@ -23,6 +25,7 @@ public:
 
     void push(T t);
     T pop();
+    std::optional<T> wait_until(std::chrono::steady_clock::time_point until);
 
     bool empty() const;
     void reserve(size_t new_capacity);
@@ -86,6 +89,20 @@ T MpscQueue<T>::pop() {
     front = (front + 1) & capacity_mask;
     size--;
     return ret;
+}
+
+template<typename T>
+std::optional<T> MpscQueue<T>::wait_until(std::chrono::steady_clock::time_point until) {
+    std::unique_lock<std::mutex> l(m);
+    if (cv.wait_until(l, until, [this]{return size != 0;})) {
+        auto ret = std::optional<T>(std::move(buffer[front]));
+        buffer[front].~T();
+        front = (front + 1) & capacity_mask;
+        size--;
+        return ret;
+    }
+    return std::nullopt;
+
 }
 
 template<typename T>
