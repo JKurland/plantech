@@ -30,6 +30,9 @@ struct WindowResize {
 
 struct WindowMinimised {};
 struct WindowRestored {};
+struct ClosingWindow {
+    GLFWwindow* window;
+};
 
 namespace window::detail {
     struct WindowDelete{
@@ -67,7 +70,6 @@ namespace window::detail {
 class Window {
 public:
     Window(int initial_width, int initial_height, std::string_view title);
-    ~Window();
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
@@ -114,7 +116,16 @@ public:
         }
         co_return;
     }
+
+    EVENT(ProgramEnd) {
+        stop_poll_thread();
+        co_await ctx.emit_await(ClosingWindow{window.get()});
+        window.reset();
+    }
 private:
+
+    void stop_poll_thread();
+
     std::unique_ptr<window::detail::Callbacks> callbacks;
     std::unique_ptr<std::atomic<bool>> stop_poll;
     std::thread poll_thread;

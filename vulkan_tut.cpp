@@ -471,7 +471,6 @@ private:
             VkResult result = vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]);
             assert(result == VK_SUCCESS);
         }
-
     }
 
     void createGraphicsPipeline() {

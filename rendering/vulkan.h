@@ -17,22 +17,6 @@
 namespace pt {
 
 namespace vulkan::detail {
-    struct MoveDetector {
-        MoveDetector() = default;
-        MoveDetector(const MoveDetector&) = default;
-        MoveDetector(MoveDetector&& o): moved(o.moved) {o.moved = true;}
-
-        MoveDetector& operator=(const MoveDetector&) = default;
-        MoveDetector& operator=(MoveDetector&& o) {
-            if (this == &o) return *this;
-            moved = o.moved;
-            o.moved = true;
-            return *this;
-        }
-
-        bool moved = false;
-    };
-
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
@@ -68,6 +52,10 @@ struct NewCommandBufferHandle {
     double render_order;
 };
 
+struct NewCommandPool {
+    using ResponseT = VkCommandPool;
+};
+
 struct UpdateCommandBuffers {
     // whether there were previously buffers registered with this handle
     using ResponseT = bool; 
@@ -86,6 +74,11 @@ struct NewSwapChain {
     std::span<VkImage> swapChainImages;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
+    VkDevice device;
+};
+
+struct DeleteSwapChain {
+    VkDevice device;
 };
 
 class VulkanRendering {
@@ -98,7 +91,6 @@ public:
     VulkanRendering& operator=(const VulkanRendering&) = delete;
     VulkanRendering& operator=(VulkanRendering&&) = default;
 
-    ~VulkanRendering();
 
     EVENT(NewWindow) {
         assert(!initialised);
@@ -110,18 +102,19 @@ public:
     }
 
     EVENT(NewFrame) {
-        std::cout << __LINE__ << std::endl;
+        auto lock = co_await draw_mutex;
         if (!initialised) {
             co_return;
         }
 
-        auto lock = co_await draw_mutex;
         if (newSwapChain) {
             if constexpr (ctx.template can_handle<NewSwapChain>()) {
+                vkDeviceWaitIdle(device);
                 co_await ctx.emit_await(NewSwapChain{
                     .swapChainImages = std::span(swapChainImages),
                     .swapChainImageFormat = swapChainImageFormat,
                     .swapChainExtent = swapChainExtent,
+                    .device = device,
                 });
             }
             newSwapChain = false;
@@ -133,6 +126,15 @@ public:
     EVENT(WindowResize) {
         framebufferResized = true;
         co_return;
+    }
+
+    EVENT(ClosingWindow) {
+        if (event.window != window) co_return;
+        auto lock = co_await draw_mutex;
+        if (!initialised) co_return;
+
+        co_await ctx.emit_await(DeleteSwapChain{device});
+        cleanup();
     }
 
     REQUEST(NewCommandBufferHandle) {
@@ -147,6 +149,10 @@ public:
         auto ret = commandBuffers.insert_or_assign(request.handle, request.commandBuffers);
         co_return !ret.second;
     }
+
+    REQUEST(NewCommandPool) {
+        co_return createCommandPool();
+    }
 private:
     void drawFrame();
 
@@ -160,6 +166,8 @@ private:
 
     void recreateSwapChain();
 
+    VkCommandPool createCommandPool();
+
     bool isDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     vulkan::detail::QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
@@ -169,6 +177,7 @@ private:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
     void cleanupSwapChain();
+    void cleanup();
 
     GLFWwindow* window;
     VkInstance instance;
@@ -193,7 +202,6 @@ private:
     bool framebufferResized = false;
     bool newSwapChain = false;
 
-    vulkan::detail::MoveDetector move_detector;
     size_t maxFramesInFlight;
     bool initialised = false;
     size_t nextHandleIdx = 0;

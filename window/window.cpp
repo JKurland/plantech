@@ -21,7 +21,7 @@ Window::Window(int initial_width, int initial_height, std::string_view title) {
     glfwSetWindowIconifyCallback(window.get(), window::detail::iconify_cb);
 }
 
-Window::~Window() {
+void Window::stop_poll_thread() {
     if (poll_thread.joinable()) {
         *stop_poll = true;
         glfwPostEmptyEvent();

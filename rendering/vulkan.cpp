@@ -395,12 +395,26 @@ void VulkanRendering::drawFrame() {
     currentFrame = (currentFrame + 1) % maxFramesInFlight;
 }
 
+VkCommandPool VulkanRendering::createCommandPool() {
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+    poolInfo.flags = 0; // Optional
+
+    VkCommandPool pool;
+    VkResult result = vkCreateCommandPool(device, &poolInfo, nullptr, &pool);
+    assert(result == VK_SUCCESS);
+    return pool;
+}
+
 void VulkanRendering::cleanupSwapChain() {
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
 
-VulkanRendering::~VulkanRendering() {
-    if (initialised && !move_detector.moved) {
+void VulkanRendering::cleanup() {
+    if (initialised) {
         vkDeviceWaitIdle(device);
 
         cleanupSwapChain();
@@ -414,6 +428,8 @@ VulkanRendering::~VulkanRendering() {
         vkDestroyDevice(device, nullptr);
         vkDestroySurfaceKHR(instance, surface, nullptr);
         vkDestroyInstance(instance, nullptr);
+
+        initialised = false;
     }
 
 }

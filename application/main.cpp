@@ -3,6 +3,9 @@
 #include "window/window.h"
 #include "rendering/vulkan.h"
 #include "rendering/framerate_driver.h"
+
+#include "application/triangle.h"
+
 #include <future>
 
 using namespace pt;
@@ -29,6 +32,7 @@ int main() {
         Window(800, 600, "Application"),
         VulkanRendering(2),
         FramerateDriver(60),
+        Triangle(1.0),
     };
 
     if constexpr (context.can_handle<ProgramStart>()) {
