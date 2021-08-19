@@ -42,14 +42,6 @@ namespace window::detail {
     struct GlfwInitRaii {
         GlfwInitRaii();
         ~GlfwInitRaii();
-
-        GlfwInitRaii(const GlfwInitRaii&) = delete;
-        GlfwInitRaii& operator=(const GlfwInitRaii&) = delete;
-
-        GlfwInitRaii(GlfwInitRaii&&);
-        GlfwInitRaii& operator=(GlfwInitRaii&&);
-
-        bool owns;
     };
 
     // callbacks is the GLFWwindow user pointer
@@ -129,7 +121,6 @@ private:
     std::unique_ptr<window::detail::Callbacks> callbacks;
     std::unique_ptr<std::atomic<bool>> stop_poll;
     std::thread poll_thread;
-    window::detail::GlfwInitRaii glfw_raii;
     std::unique_ptr<GLFWwindow, window::detail::WindowDelete> window;
 };
 

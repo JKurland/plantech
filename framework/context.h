@@ -235,10 +235,10 @@ public:
     Context& operator=(const Context&) = delete;
     Context& operator=(Context&&) = delete;
 
-    template<Event E>
+    template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
-        static_assert(indexes.size() != 0, "Nothing to handle event E");
+        static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
             start_event();
             auto joined = handler_set.call_with(
@@ -251,10 +251,10 @@ public:
         }   
     }
 
-    template<Event E>
+    template<bool AllowUnhandled=true, Event E>
     void emit_sync(E&& event) {
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
-        static_assert(indexes.size() != 0, "Nothing to handle event E");
+        static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
             start_event();
             auto joined = handler_set.call_with(
@@ -267,10 +267,10 @@ public:
         }   
     }
 
-    template<Event E>
+    template<bool AllowUnhandled=true, Event E>
     auto emit_await(E&& event) {
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
-        static_assert(indexes.size() != 0, "Nothing to handle event E");
+        static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
             start_event();
             return handler_set.call_with(
@@ -279,7 +279,9 @@ public:
                     return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
                 }
             );
-        }   
+        } else {
+            return std::suspend_never{};
+        }
     }
 
     template<Request R>

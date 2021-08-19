@@ -2,8 +2,9 @@
 
 #include <GLFW/glfw3.h>
 #include <memory>
+#include <iostream>
 #include <atomic>
-
+#include <cstdio>
 
 namespace pt {
 
@@ -14,6 +15,7 @@ Window::Window(int initial_width, int initial_height, std::string_view title) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     window.reset(glfwCreateWindow(initial_width, initial_height, title.data(), nullptr, nullptr));
+    assert(window);
     glfwSetWindowUserPointer(window.get(), callbacks.get());
 
     glfwSetKeyCallback(window.get(), window::detail::key_cb);
@@ -35,24 +37,18 @@ namespace window::detail {
     }
 
     GlfwInitRaii::GlfwInitRaii() {
-        owns = true;
-        glfwInit();
+        bool ret = glfwInit();
+        const char* desc;
+        int err = glfwGetError(&desc);
+        fprintf(stderr, "err: %d, desc: %s", err, desc);
+
+        assert(ret);
     }
     GlfwInitRaii::~GlfwInitRaii() {
-        if (owns) {
-            glfwTerminate();
-        }
+        glfwTerminate();
     }
 
-    GlfwInitRaii::GlfwInitRaii(GlfwInitRaii&& o) {
-        owns = true;
-        o.owns = false;
-    }
-
-    GlfwInitRaii& GlfwInitRaii::operator=(GlfwInitRaii&& o) {
-        std::swap(o.owns, owns);
-        return *this;
-    }
+    static GlfwInitRaii glfwInitRaii;
 
     void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
         Callbacks* callbacks = reinterpret_cast<Callbacks*>(glfwGetWindowUserPointer(window));
