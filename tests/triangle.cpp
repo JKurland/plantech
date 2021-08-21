@@ -25,7 +25,7 @@ namespace {
 }
 
 namespace pt {
-void Triangle::createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat) {
+void Triangle::createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat, VkDevice device) {
     swapChainImageViews.resize(swapChainImages.size());
     
     for (size_t i = 0; i < swapChainImages.size(); i++) {
@@ -50,7 +50,7 @@ void Triangle::createImageViews(std::span<VkImage> swapChainImages, VkFormat swa
     }
 }
 
-void Triangle::createRenderPass(VkFormat swapChainImageFormat) {
+void Triangle::createRenderPass(VkFormat swapChainImageFormat, VkDevice device) {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapChainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -91,12 +91,12 @@ void Triangle::createRenderPass(VkFormat swapChainImageFormat) {
     assert(result == VK_SUCCESS);
 }
 
-void Triangle::createGraphicsPipeline(VkExtent2D swapChainExtent) {
+void Triangle::createGraphicsPipeline(VkExtent2D swapChainExtent, VkDevice device) {
     auto vertShaderCode = readFile("tests/shader.vert.glsl.spv");
     auto fragShaderCode = readFile("tests/shader.frag.glsl.spv");
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, device);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, device);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -220,7 +220,7 @@ void Triangle::createGraphicsPipeline(VkExtent2D swapChainExtent) {
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
-void Triangle::createFramebuffers(VkExtent2D swapChainExtent) {
+void Triangle::createFramebuffers(VkExtent2D swapChainExtent, VkDevice device) {
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -242,7 +242,7 @@ void Triangle::createFramebuffers(VkExtent2D swapChainExtent) {
     }
 }
 
-void Triangle::createCommandBuffers(VkExtent2D swapChainExtent) {
+void Triangle::createCommandBuffers(VkExtent2D swapChainExtent, VkDevice device) {
     commandBuffers.resize(swapChainFramebuffers.size());
 
     VkCommandBufferAllocateInfo allocInfo{};
@@ -284,7 +284,7 @@ void Triangle::createCommandBuffers(VkExtent2D swapChainExtent) {
     }
 }
 
-VkShaderModule Triangle::createShaderModule(const std::vector<char>& code) {
+VkShaderModule Triangle::createShaderModule(const std::vector<char>& code, VkDevice device) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
@@ -296,7 +296,7 @@ VkShaderModule Triangle::createShaderModule(const std::vector<char>& code) {
     return shaderModule;
 }
 
-void Triangle::cleanupSwapChain() {
+void Triangle::cleanupSwapChain(VkDevice device) {
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
         vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
@@ -311,10 +311,10 @@ void Triangle::cleanupSwapChain() {
     }
 }
 
-void Triangle::cleanup() {
+void Triangle::cleanup(VkDevice device) {
     if (initialised) {
         vkDeviceWaitIdle(device);
-        cleanupSwapChain();
+        cleanupSwapChain(device);
         vkDestroyCommandPool(device, *commandPool, nullptr);
         initialised = false;
     }

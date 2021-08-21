@@ -153,6 +153,7 @@ public:
     REQUEST(NewCommandPool) {
         co_return createCommandPool();
     }
+
 private:
     void drawFrame();
 

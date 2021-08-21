@@ -58,3 +58,11 @@ TEST_F(TriangleTest, should_open_and_close_window_and_draw_frame) {
     newFrame();
     quitProgram();
 }
+
+TEST_F(TriangleTest, should_open_and_close_window_and_draw_some_frames) {
+    startProgram();
+    for (size_t i = 0; i < 10; i++) {
+        newFrame();
+    }
+    quitProgram();
+}

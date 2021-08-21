@@ -25,6 +25,12 @@ public:
     EVENT(NewSwapChain) {
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
+
+        if (initialised) {
+            cleanupSwapChain(event.device);
+            initialised = false;
+        }
+
         if (!commandBufferHandle.has_value()) {
             commandBufferHandle = co_await ctx(NewCommandBufferHandle{renderOrder});
         }
@@ -33,18 +39,11 @@ public:
             commandPool = co_await ctx(NewCommandPool{});
         }
 
-        device = event.device;
-
-        if (initialised) {
-            cleanupSwapChain();
-            initialised = false;
-        }
-
-        createImageViews(event.swapChainImages, event.swapChainImageFormat);
-        createRenderPass(event.swapChainImageFormat);
-        createGraphicsPipeline(event.swapChainExtent);
-        createFramebuffers(event.swapChainExtent);
-        createCommandBuffers(event.swapChainExtent);
+        createImageViews(event.swapChainImages, event.swapChainImageFormat, event.device);
+        createRenderPass(event.swapChainImageFormat, event.device);
+        createGraphicsPipeline(event.swapChainExtent, event.device);
+        createFramebuffers(event.swapChainExtent, event.device);
+        createCommandBuffers(event.swapChainExtent, event.device);
 
         auto req = UpdateCommandBuffers{
             *commandBufferHandle,
@@ -58,25 +57,23 @@ public:
 
     EVENT(DeleteSwapChain) {
         assert(!newSwapChainInProgress);
-        if (event.device != device) co_return;
-        cleanup();
+        cleanup(event.device);
         co_return;
     }
 
 private:
-    void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat);
-    void createRenderPass(VkFormat swapChainImageFormat);
-    void createGraphicsPipeline(VkExtent2D swapChainExtent);
-    void createFramebuffers(VkExtent2D swapChainExtent);
-    void createCommandBuffers(VkExtent2D swapChainExtent);
-    void cleanupSwapChain();
-    void cleanup();
+    void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat, VkDevice device);
+    void createRenderPass(VkFormat swapChainImageFormat, VkDevice device);
+    void createGraphicsPipeline(VkExtent2D swapChainExtent, VkDevice device);
+    void createFramebuffers(VkExtent2D swapChainExtent, VkDevice device);
+    void createCommandBuffers(VkExtent2D swapChainExtent, VkDevice device);
+    void cleanupSwapChain(VkDevice device);
+    void cleanup(VkDevice device);
 
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device);
 
     double renderOrder;
 
-    VkDevice device;
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
