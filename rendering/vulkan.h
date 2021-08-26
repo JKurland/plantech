@@ -9,10 +9,12 @@
 #include <span>
 #include <utility>
 #include <iostream>
+#include <cstring>
 
 #include "framework/context.h"
 #include "window/window.h"
 #include "thread_pool/mutex.h"
+#include "rendering/utils.h"
 
 namespace pt {
 
@@ -70,6 +72,13 @@ struct UpdateCommandBuffers {
     std::vector<VkCommandBuffer> commandBuffers;
 };
 
+struct TransferDataToBuffer {
+    using ResponseT = void;
+
+    std::span<const char> data;
+    VkBuffer dst_buffer;
+};
+
 struct NewSwapChain {
     std::span<VkImage> swapChainImages;
     VkFormat swapChainImageFormat;
@@ -78,6 +87,11 @@ struct NewSwapChain {
 };
 
 struct DeleteSwapChain {
+    VkDevice device;
+};
+
+struct VulkanInitialised {
+    VkPhysicalDevice physicalDevice;
     VkDevice device;
 };
 
@@ -98,6 +112,10 @@ public:
         initVulkan();
         initialised = true;
         newSwapChain = true;
+        co_await ctx.emit_await(VulkanInitialised{
+            .physicalDevice = physicalDevice,
+            .device = device,
+        });
         co_return;
     }
 
@@ -154,6 +172,40 @@ public:
         co_return createCommandPool();
     }
 
+    REQUEST(TransferDataToBuffer) {
+        const VkDeviceSize bufferSize = request.data.size();
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        vkutils::createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            device,
+            physicalDevice,
+            stagingBuffer,
+            stagingBufferMemory
+        );
+
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        std::memcpy(data, request.data.data(), (size_t) bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        vkutils::copyBuffer(
+            device,
+            commandPool,
+            graphicsQueue,
+            stagingBuffer,
+            request.dst_buffer,
+            bufferSize
+        );
+
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+
+        co_return;
+    }
+
 private:
     void drawFrame();
 
@@ -187,6 +239,7 @@ private:
     VkQueue graphicsQueue;
     VkSurfaceKHR surface;
     VkQueue presentQueue;
+    VkCommandPool commandPool;
 
     VkSwapchainKHR swapChain;
     std::vector<VkImage> swapChainImages;

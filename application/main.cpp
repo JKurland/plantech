@@ -3,6 +3,7 @@
 #include "window/window.h"
 #include "rendering/vulkan.h"
 #include "rendering/framerate_driver.h"
+#include "rendering/mesh.h"
 
 #include <future>
 
@@ -19,6 +20,7 @@ int main() {
         Window(800, 600, "Application"),
         VulkanRendering(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
+        MeshRenderer(),
     };
 
     context.emit_sync(ProgramStart{});

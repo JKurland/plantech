@@ -37,12 +37,7 @@ namespace window::detail {
     }
 
     GlfwInitRaii::GlfwInitRaii() {
-        bool ret = glfwInit();
-        const char* desc;
-        int err = glfwGetError(&desc);
-        fprintf(stderr, "err: %d, desc: %s", err, desc);
-
-        assert(ret);
+        assert(glfwInit());
     }
     GlfwInitRaii::~GlfwInitRaii() {
         glfwTerminate();

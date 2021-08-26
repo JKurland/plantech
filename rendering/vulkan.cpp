@@ -25,6 +25,7 @@ void VulkanRendering::initVulkan() {
     createLogicalDevice();
     createSwapChain();
     createSyncObjects();
+    commandPool = createCommandPool();
 }
 
 void VulkanRendering::recreateSwapChain() {
