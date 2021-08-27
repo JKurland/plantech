@@ -30,36 +30,30 @@ namespace mesh::detail {
 
 class MeshRenderer {
 public:
-    MeshRenderer() = default;
     MeshRenderer(const MeshRenderer&) = delete;
     MeshRenderer(MeshRenderer&&) = default;
     MeshRenderer& operator=(const MeshRenderer&) = delete;
     MeshRenderer& operator=(MeshRenderer&&) = default;
 
-    EVENT(VulkanInitialised) {
-        assert(!initialised);
-        assert(!initialising);
-        initialising = true;
+    template<IsContext C>
+    MeshRenderer(C& ctx) {
+        commandPool = ctx.request_sync(NewCommandPool{});
 
-        if (!commandPool.has_value()) {
-            commandPool = co_await ctx(NewCommandPool{});
-        }
+        createVertexBuffer(
+            ctx.request_sync(GetVulkanPhysicalDevice{}),
+            ctx.request_sync(GetVulkanDevice{})
+        );
 
-        createVertexBuffer(event.physicalDevice, event.device);
-        co_await ctx(TransferDataToBuffer{
+        ctx.request_sync(TransferDataToBuffer{
             .data = std::span(
                 reinterpret_cast<const char*>(mesh::detail::vertices.data()),
                 mesh::detail::vertices.size() * sizeof(mesh::detail::vertices[0])
             ),
             .dst_buffer = vertexBuffer,
         });
-
-        initialising = false;
-        initialised = true;
     }
 
     EVENT(NewSwapChain) {
-        assert(initialised);
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
 
@@ -109,7 +103,7 @@ private:
 
     double renderOrder = 0.0;
 
-    std::optional<VkCommandPool> commandPool;
+    VkCommandPool commandPool;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
 
@@ -124,8 +118,6 @@ private:
 
     bool newSwapChainInProgress = false;
     bool swapChainInitialised = false;
-    bool initialised = false;
-    bool initialising = false;
 };
 
 }

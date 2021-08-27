@@ -59,6 +59,8 @@ public:
     template<typename...ArgTs>
     HandlerSet(ArgTs&&...args): handlers(std::forward<ArgTs>(args)...) {}
 
+    template<typename...OtherHandlerTs, typename NewHandlerT>
+    HandlerSet(HandlerSet<OtherHandlerTs...>&& old, NewHandlerT&& new_handler): handlers(std::tuple_cat(std::move(old.handlers), std::tuple(std::forward<NewHandlerT>(new_handler)))) {}
 
     template<typename Pred>
     static constexpr auto true_indexes() {
@@ -75,15 +77,12 @@ public:
         return std::invoke(std::forward<F>(f), std::get<Is>(handlers)...);
     }
 
+    template<typename...Ts>
+    friend class HandlerSet;
 private:
     std::tuple<HandlerTs...> handlers;
 };
 
-template<typename...ArgTs>
-using HandlerSetFromArgs = HandlerSet<std::decay_t<ArgTs>...>;
-
-template<typename...ArgTs>
-HandlerSet(ArgTs...) -> HandlerSetFromArgs<ArgTs...>;
 
 
 }

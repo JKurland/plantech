@@ -19,10 +19,6 @@ struct KeyPress {
     int glfw_key;
 };
 
-struct NewWindow {
-    GLFWwindow* window;
-};
-
 struct WindowResize {
     int width;
     int height;
@@ -32,6 +28,10 @@ struct WindowMinimised {};
 struct WindowRestored {};
 struct ClosingWindow {
     GLFWwindow* window;
+};
+
+struct GetWindowPointer {
+    using ResponseT = GLFWwindow*;
 };
 
 namespace window::detail {
@@ -69,8 +69,6 @@ public:
     Window& operator=(Window&&) = default;
 
     EVENT(ProgramStart) {
-        ctx.emit(NewWindow{window.get()});
-
         callbacks->key_cb = [&ctx](GLFWwindow* window, int key, int scancode, int action, int mods) {
             ctx.emit(KeyPress{key});
         };
@@ -113,6 +111,10 @@ public:
         stop_poll_thread();
         co_await ctx.emit_await(ClosingWindow{window.get()});
         window.reset();
+    }
+
+    REQUEST(GetWindowPointer) {
+        co_return window.get();
     }
 private:
 

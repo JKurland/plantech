@@ -221,14 +221,34 @@ namespace context::detail {
         template<typename Handler>
         static constexpr bool value = HandlesRequest<Handler, C, R>;
     };
+
+    template<typename T, typename...ArgTs>
+    struct CtorArgs {
+        CtorArgs(ArgTs&&...args): args(std::forward<ArgTs>(args)...) {}
+        using Type = T;
+
+        // we always want a reference
+        std::tuple<ArgTs&&...> args;
+    };
+
+
+    template<typename T>
+    struct is_ctor_args: std::false_type {};
+
+    template<typename...Ts>
+    struct is_ctor_args<CtorArgs<Ts...>>: std::true_type {};
+
+    struct make_context_friend;
+}
+
+template<typename T, typename...ArgTs>
+context::detail::CtorArgs<T, ArgTs...> ctor_args(ArgTs&&...args) {
+    return context::detail::CtorArgs<T, ArgTs...>(std::forward<ArgTs>(args)...);
 }
 
 template<typename...HandlerTs>
 class Context {
 public:
-    template<typename...ArgTs>
-    Context(ArgTs&&...args): handler_set(HandlerSet(std::forward<ArgTs>(args)...)) {}
-
     Context(const Context&) = delete;
     Context(Context&&) = delete;
 
@@ -296,6 +316,11 @@ public:
         }
     }
 
+    template<Request R>
+    auto request_sync(const R& request) {
+        return run_awaitable_sync(thread_pool, (*this)(request));
+    }
+
     void start_event() {
         events_in_progress++;
     }
@@ -310,11 +335,6 @@ public:
     void wait_for_all_events_to_finish() {
         std::unique_lock l(m);
         cv.wait(l, [&]{return events_in_progress == 0;});
-    }
-
-    template<Request R>
-    auto request_sync(const R& request) {
-        return run_awaitable_sync(thread_pool, (*this)(request));
     }
 
     template<Event E>
@@ -334,10 +354,56 @@ private:
     std::condition_variable cv;
 
     FixedCoroutineThreadPool<1> thread_pool;
+
+    template<typename...OtherHandlerTs, typename NewHandlerT>
+    Context(Context<OtherHandlerTs...>&& old, NewHandlerT&& new_handler):
+        handler_set(std::move(old.handler_set), std::forward<NewHandlerT>(new_handler))
+    {}
+
+    Context(): handler_set() {}
+
+    friend context::detail::make_context_friend;
+
+    template<typename...Ts>
+    friend class Context;
 };
 
+
+namespace context::detail {
+    struct make_context_friend {
+        template<typename...ContextTs, typename FirstT, typename...ArgTs>
+        static auto make_context_impl(Context<ContextTs...>&& prev_ctx, FirstT&& first, ArgTs&&...args) {
+            if constexpr (is_ctor_args<std::decay_t<FirstT>>::value) {
+                auto new_handler = std::apply(
+                    [&](auto&&...ctor_args){return typename FirstT::Type(prev_ctx, std::forward<decltype(ctor_args)>(ctor_args)...);},
+                    first.args
+                );
+                if constexpr (sizeof...(ArgTs) == 0) {
+                    return Context<ContextTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler));
+                } else {
+                    return make_context_impl(Context<ContextTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler)), std::forward<ArgTs>(args)...);
+                }
+            } else {
+                if constexpr (sizeof...(ArgTs) == 0) {
+                    return Context<ContextTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first));
+                } else {
+                    return make_context_impl(Context<ContextTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first)), std::forward<ArgTs>(args)...);
+                }
+            }
+        }
+
+        template<typename...ArgTs>
+        static auto make_context_impl_outer(ArgTs&&...args) {
+            return make_context_impl(Context<>(), std::forward<ArgTs>(args)...);
+        }
+    };
+} // context::detail
+
+
 template<typename...ArgTs>
-Context(ArgTs...) -> Context<std::decay_t<ArgTs>...>;
+auto make_context(ArgTs&&...args) {
+    return context::detail::make_context_friend::make_context_impl_outer(std::forward<ArgTs>(args)...);
+}
 
 
 #define EVENT(event_type) \

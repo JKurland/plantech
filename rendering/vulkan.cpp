@@ -415,24 +415,19 @@ void VulkanRendering::cleanupSwapChain() {
 }
 
 void VulkanRendering::cleanup() {
-    if (initialised) {
-        vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(device);
 
-        cleanupSwapChain();
+    cleanupSwapChain();
 
-        for (size_t i = 0; i < maxFramesInFlight; i++) {
-            vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-            vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-            vkDestroyFence(device, inFlightFences[i], nullptr);
-        }
-
-        vkDestroyDevice(device, nullptr);
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-        vkDestroyInstance(instance, nullptr);
-
-        initialised = false;
+    for (size_t i = 0; i < maxFramesInFlight; i++) {
+        vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(device, inFlightFences[i], nullptr);
     }
 
+    vkDestroyDevice(device, nullptr);
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+    vkDestroyInstance(instance, nullptr);
 }
 
 }

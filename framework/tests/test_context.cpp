@@ -91,7 +91,7 @@ struct TestHandler {
 
 class TestContext: public ::testing::Test {
 protected:
-    TestContext(): ctx(TestHandler{}) {}
+    TestContext(): ctx(make_context(TestHandler{})) {}
 
     ~TestContext() {
         for (auto& promise: promises) {

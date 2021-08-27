@@ -16,6 +16,7 @@ namespace pt {
 class Triangle {
 public:
     Triangle(double renderOrder): renderOrder(renderOrder) {}
+
     Triangle(const Triangle&) = delete;
     Triangle(Triangle&&) = default;
     Triangle& operator=(const Triangle&) = delete;

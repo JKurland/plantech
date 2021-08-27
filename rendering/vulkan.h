@@ -95,9 +95,22 @@ struct VulkanInitialised {
     VkDevice device;
 };
 
+struct GetVulkanPhysicalDevice {
+    using ResponseT = VkPhysicalDevice;
+};
+
+struct GetVulkanDevice {
+    using ResponseT = VkDevice;
+};
+
 class VulkanRendering {
 public:
-    VulkanRendering(size_t maxFramesInFlight): maxFramesInFlight(maxFramesInFlight) {}
+    template<IsContext C>
+    VulkanRendering(C& ctx, size_t maxFramesInFlight): maxFramesInFlight(maxFramesInFlight) {
+        window = ctx.request_sync(GetWindowPointer{});
+        initVulkan();
+        newSwapChain = true;
+    }
 
     VulkanRendering(const VulkanRendering&) = delete;
     VulkanRendering(VulkanRendering&&) = default;
@@ -106,24 +119,8 @@ public:
     VulkanRendering& operator=(VulkanRendering&&) = default;
 
 
-    EVENT(NewWindow) {
-        assert(!initialised);
-        window = event.window;
-        initVulkan();
-        initialised = true;
-        newSwapChain = true;
-        co_await ctx.emit_await(VulkanInitialised{
-            .physicalDevice = physicalDevice,
-            .device = device,
-        });
-        co_return;
-    }
-
     EVENT(NewFrame) {
         auto lock = co_await draw_mutex;
-        if (!initialised) {
-            co_return;
-        }
 
         if (newSwapChain) {
             if constexpr (ctx.template can_handle<NewSwapChain>()) {
@@ -149,7 +146,6 @@ public:
     EVENT(ClosingWindow) {
         if (event.window != window) co_return;
         auto lock = co_await draw_mutex;
-        if (!initialised) co_return;
 
         co_await ctx.emit_await(DeleteSwapChain{device});
         cleanup();
@@ -206,6 +202,14 @@ public:
         co_return;
     }
 
+    REQUEST(GetVulkanPhysicalDevice) {
+        co_return physicalDevice;
+    }
+
+    REQUEST(GetVulkanDevice) {
+        co_return device;
+    }
+
 private:
     void drawFrame();
 
@@ -257,7 +261,6 @@ private:
     bool newSwapChain = false;
 
     size_t maxFramesInFlight;
-    bool initialised = false;
     size_t nextHandleIdx = 0;
 
     SingleThreadedMutex draw_mutex;

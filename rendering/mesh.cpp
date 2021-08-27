@@ -269,7 +269,7 @@ void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent, VkDevice dev
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = *commandPool;
+    allocInfo.commandPool = commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
@@ -327,7 +327,7 @@ void MeshRenderer::cleanupSwapChain(VkDevice device) {
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
         vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
-    vkFreeCommandBuffers(device, *commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+    vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -345,12 +345,9 @@ void MeshRenderer::cleanup(VkDevice device) {
         swapChainInitialised = false;
     }
 
-    if (initialised) {
-        vkDestroyBuffer(device, vertexBuffer, nullptr);
-        vkFreeMemory(device, vertexBufferMemory, nullptr);
-        vkDestroyCommandPool(device, *commandPool, nullptr);
-        initialised = false;
-    }
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    vkDestroyCommandPool(device, commandPool, nullptr);
 }
 
 VkVertexInputBindingDescription mesh::detail::Vertex::getBindingDescription() {

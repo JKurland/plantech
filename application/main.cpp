@@ -15,13 +15,27 @@ int main() {
     std::promise<int> release_main;
     std::future<int> release_main_future = release_main.get_future();
 
-    auto context = Context{
-        Quitter{ProgramEnd{}, std::move(release_main)},
+    /* context is created as follows:
+        Each handler is added to the context in the order they appear in the arguments to make_context.
+        If the argument to make context is a CtorArgs then instead of being interpreted as a handler the constructor
+          of the CtorArgs template argument is called. The first argument passed to the constructor is the context
+          containing all the handlers add up to that point, the remaining arguments are forwarded from the arguments to
+          the CtorArgs constructor.
+        
+        Doing this allows each handler to use context inside it's constructor, it can communicate with the other handlers that
+        have already been constructed, and it is checked at compile time if it tries to issue requests to handlers that are not
+        constructed yet.
+
+        This does mean the the context supplied during construction is not the same as the context supplied in handlers, so don't
+        save off the constructor context.
+    */
+    auto context = make_context(
+        Quitter(ProgramEnd{}, std::move(release_main)),
         Window(800, 600, "Application"),
-        VulkanRendering(/*max frames in flight*/ 2),
+        ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
-        MeshRenderer(),
-    };
+        ctor_args<MeshRenderer>()
+    );
 
     context.emit_sync(ProgramStart{});
 

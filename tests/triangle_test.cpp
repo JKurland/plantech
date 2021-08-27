@@ -14,12 +14,12 @@ protected:
     TriangleTest():
         p(),
         f(p.get_future()),
-        context(
+        context(make_context(
             Quitter{ProgramEnd{}, std::move(p)},
             Window(800, 600, "Triangle Test"),
-            VulkanRendering(/*max frames in flight*/ 2),
+            ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
             Triangle(1.0)
-        )
+        ))
     {}
 
     void startProgram() {
