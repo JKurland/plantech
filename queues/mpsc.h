@@ -35,6 +35,9 @@ private:
     // new_capacity must be a power of 2
     void reallocate(size_t new_capacity);
 
+    T& get(size_t i);
+    const T& get(size_t i) const;
+
     T* buffer = nullptr;
     size_t front = 0;
     size_t size = 0;
@@ -47,9 +50,19 @@ private:
 template<typename T>
 MpscQueue<T>::~MpscQueue() {
     for (size_t i = 0; i < size; i++) {
-        buffer[(i + front) & capacity_mask].~T();
+        get(i).~T();
     }
     std::free(buffer);
+}
+
+template<typename T>
+T& MpscQueue<T>::get(size_t i) {
+    return *std::launder(&buffer[(i + front) & capacity_mask]);
+}
+
+template<typename T>
+const T& MpscQueue<T>::get(size_t i) const {
+    return *std::launder(&buffer[(i + front) & capacity_mask]);
 }
 
 template<typename T>
@@ -84,8 +97,8 @@ template<typename T>
 T MpscQueue<T>::pop() {
     std::unique_lock<std::mutex> l(m);
     cv.wait(l, [this]{return size != 0;});
-    T ret = std::move(buffer[front]);
-    buffer[front].~T();
+    T ret = std::move(get(0));
+    get(0).~T();
     front = (front + 1) & capacity_mask;
     size--;
     return ret;
@@ -95,8 +108,8 @@ template<typename T>
 std::optional<T> MpscQueue<T>::wait_until(std::chrono::steady_clock::time_point until) {
     std::unique_lock<std::mutex> l(m);
     if (cv.wait_until(l, until, [this]{return size != 0;})) {
-        auto ret = std::optional<T>(std::move(buffer[front]));
-        buffer[front].~T();
+        auto ret = std::optional<T>(std::move(get(0)));
+        get(0).~T();
         front = (front + 1) & capacity_mask;
         size--;
         return ret;
@@ -127,7 +140,7 @@ void MpscQueue<T>::reallocate(size_t new_capacity) {
             new (&new_buffer[i]) T(std::move_if_noexcept(buffer[(front + i) & capacity_mask]));
         } catch (...) {
             for (size_t k = 0; k < i; k++) {
-                new_buffer[k].~T();
+                std::launder(&new_buffer[k])->~T();
             }
             std::free(new_buffer);
             throw;
@@ -175,7 +188,7 @@ MpscQueue<T>& MpscQueue<T>::operator=(const MpscQueue& o) {
     {
         std::lock_guard l{m};
         for (size_t i = 0; i < size; i++) {
-            buffer[(i + front) & capacity_mask].~T();
+            get(i).~T();
         }
     }
 
@@ -197,10 +210,10 @@ MpscQueue<T>& MpscQueue<T>::operator=(const MpscQueue& o) {
 
     reserve(o.size);
     for (size_t i = 0; i < o.size; i++) {
-        new (&buffer[(i + front) & capacity_mask]) T(static_cast<const T&>(o.buffer[(i + o.front) & o.capacity_mask]));
+        new (&buffer[(i + front) & capacity_mask]) T(static_cast<const T&>(o.get(i)));
         size++;
     }
-    
+
     if (size > 0) {
         l2.unlock();
         l.unlock();

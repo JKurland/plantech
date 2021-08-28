@@ -1,10 +1,10 @@
 #pragma once
 
-#include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include "thread_pool/promise.h"
+#include "utils/ordered_destructing_tuple.h"
 
 namespace pt {
 
@@ -60,7 +60,7 @@ public:
     HandlerSet(ArgTs&&...args): handlers(std::forward<ArgTs>(args)...) {}
 
     template<typename...OtherHandlerTs, typename NewHandlerT>
-    HandlerSet(HandlerSet<OtherHandlerTs...>&& old, NewHandlerT&& new_handler): handlers(std::tuple_cat(std::move(old.handlers), std::tuple(std::forward<NewHandlerT>(new_handler)))) {}
+    HandlerSet(HandlerSet<OtherHandlerTs...>&& old, NewHandlerT&& new_handler): handlers(std::move(old.handlers).concat(OrderedDestructingTuple{std::forward<NewHandlerT>(new_handler)})) {}
 
     template<typename Pred>
     static constexpr auto true_indexes() {
@@ -69,18 +69,18 @@ public:
 
     template<size_t I>
     auto& get() {
-        return std::get<I>(handlers);
+        return handlers.template get<I>();
     }
 
     template<typename F, size_t...Is>
     decltype(auto) call_with(std::index_sequence<Is...>, F&& f) {
-        return std::invoke(std::forward<F>(f), std::get<Is>(handlers)...);
+        return std::invoke(std::forward<F>(f), handlers.template get<Is>()...);
     }
 
     template<typename...Ts>
     friend class HandlerSet;
 private:
-    std::tuple<HandlerTs...> handlers;
+    OrderedDestructingTuple<HandlerTs...> handlers;
 };
 
 
