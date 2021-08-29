@@ -26,9 +26,6 @@ struct WindowResize {
 
 struct WindowMinimised {};
 struct WindowRestored {};
-struct ClosingWindow {
-    GLFWwindow* window;
-};
 
 struct GetWindowPointer {
     using ResponseT = GLFWwindow*;
@@ -109,8 +106,7 @@ public:
 
     EVENT(ProgramEnd) {
         stop_poll_thread();
-        co_await ctx.emit_await(ClosingWindow{window.get()});
-        window.reset();
+        co_return;
     }
 
     REQUEST(GetWindowPointer) {

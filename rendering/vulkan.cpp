@@ -430,4 +430,9 @@ void VulkanRendering::cleanup() {
     vkDestroyInstance(instance, nullptr);
 }
 
+VulkanRendering::~VulkanRendering() {
+    if (!move_detector.moved)
+        cleanup();
+}
+
 }

@@ -4,11 +4,13 @@
 
 #include "framework/context.h"
 #include "rendering/vulkan.h"
+#include "utils/move_detector.h"
 
 #include <vector>
 #include <optional>
 #include <span>
 #include <array>
+
 
 namespace pt {
 
@@ -35,14 +37,14 @@ public:
     MeshRenderer& operator=(const MeshRenderer&) = delete;
     MeshRenderer& operator=(MeshRenderer&&) = default;
 
+    ~MeshRenderer();
+
     template<IsContext C>
     MeshRenderer(C& ctx) {
         commandPool = ctx.request_sync(NewCommandPool{});
 
-        createVertexBuffer(
-            ctx.request_sync(GetVulkanPhysicalDevice{}),
-            ctx.request_sync(GetVulkanDevice{})
-        );
+        device = ctx.request_sync(GetVulkanDevice{});
+        createVertexBuffer(ctx.request_sync(GetVulkanPhysicalDevice{}));
 
         ctx.request_sync(TransferDataToBuffer{
             .data = std::span(
@@ -57,8 +59,9 @@ public:
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
 
+
         if (swapChainInitialised) {
-            cleanupSwapChain(event.device);
+            cleanupSwapChain();
             swapChainInitialised = false;
         }
 
@@ -66,11 +69,11 @@ public:
             commandBufferHandle = co_await ctx(NewCommandBufferHandle{renderOrder});
         }
 
-        createImageViews(event.swapChainImages, event.swapChainImageFormat, event.device);
-        createRenderPass(event.swapChainImageFormat, event.device);
-        createGraphicsPipeline(event.swapChainExtent, event.device);
-        createFramebuffers(event.swapChainExtent, event.device);
-        createCommandBuffers(event.swapChainExtent, event.device);
+        createImageViews(event.swapChainImages, event.swapChainImageFormat);
+        createRenderPass(event.swapChainImageFormat);
+        createGraphicsPipeline(event.swapChainExtent);
+        createFramebuffers(event.swapChainExtent);
+        createCommandBuffers(event.swapChainExtent);
 
         auto req = UpdateCommandBuffers{
             *commandBufferHandle,
@@ -82,27 +85,22 @@ public:
         swapChainInitialised = true;
     }
 
-    EVENT(DeleteSwapChain) {
-        assert(!newSwapChainInProgress);
-        cleanup(event.device);
-        co_return;
-    }
-
 private:
-    void createVertexBuffer(VkPhysicalDevice physicalDevice, VkDevice device);
+    void createVertexBuffer(VkPhysicalDevice physicalDevice);
 
-    void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat, VkDevice device);
-    void createRenderPass(VkFormat swapChainImageFormat, VkDevice device);
-    void createGraphicsPipeline(VkExtent2D swapChainExtent, VkDevice device);
-    void createFramebuffers(VkExtent2D swapChainExtent, VkDevice device);
-    void createCommandBuffers(VkExtent2D swapChainExtent, VkDevice device);
-    void cleanupSwapChain(VkDevice device);
-    void cleanup(VkDevice device);
+    void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat);
+    void createRenderPass(VkFormat swapChainImageFormat);
+    void createGraphicsPipeline(VkExtent2D swapChainExtent);
+    void createFramebuffers(VkExtent2D swapChainExtent);
+    void createCommandBuffers(VkExtent2D swapChainExtent);
+    void cleanupSwapChain();
+    void cleanup();
 
-    VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice device);
+    VkShaderModule createShaderModule(const std::vector<char>& code);
 
     double renderOrder = 0.0;
 
+    VkDevice device;
     VkCommandPool commandPool;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
@@ -118,6 +116,8 @@ private:
 
     bool newSwapChainInProgress = false;
     bool swapChainInitialised = false;
+
+    MoveDetector move_detector;
 };
 
 }

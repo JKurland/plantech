@@ -28,6 +28,9 @@ int main() {
 
         This does mean the the context supplied during construction is not the same as the context supplied in handlers, so don't
         save off the constructor context.
+
+        When context is destructed destructors are run in the opposite order to constructors. Handlers won't receive events or requests
+        during destruction, this is because handlers mustn't send events or requests after returning from their EVENT(ProgramEnd).
     */
     auto context = make_context(
         Quitter(ProgramEnd{}, std::move(release_main)),

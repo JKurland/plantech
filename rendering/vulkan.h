@@ -15,6 +15,7 @@
 #include "window/window.h"
 #include "thread_pool/mutex.h"
 #include "rendering/utils.h"
+#include "utils/move_detector.h"
 
 namespace pt {
 
@@ -86,15 +87,6 @@ struct NewSwapChain {
     VkDevice device;
 };
 
-struct DeleteSwapChain {
-    VkDevice device;
-};
-
-struct VulkanInitialised {
-    VkPhysicalDevice physicalDevice;
-    VkDevice device;
-};
-
 struct GetVulkanPhysicalDevice {
     using ResponseT = VkPhysicalDevice;
 };
@@ -118,6 +110,7 @@ public:
     VulkanRendering& operator=(const VulkanRendering&) = delete;
     VulkanRendering& operator=(VulkanRendering&&) = default;
 
+    ~VulkanRendering();
 
     EVENT(NewFrame) {
         auto lock = co_await draw_mutex;
@@ -141,14 +134,6 @@ public:
     EVENT(WindowResize) {
         framebufferResized = true;
         co_return;
-    }
-
-    EVENT(ClosingWindow) {
-        if (event.window != window) co_return;
-        auto lock = co_await draw_mutex;
-
-        co_await ctx.emit_await(DeleteSwapChain{device});
-        cleanup();
     }
 
     REQUEST(NewCommandBufferHandle) {
@@ -264,6 +249,7 @@ private:
     size_t nextHandleIdx = 0;
 
     SingleThreadedMutex draw_mutex;
+    MoveDetector move_detector;
 };
 
 }

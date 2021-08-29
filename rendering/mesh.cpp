@@ -29,7 +29,7 @@ namespace {
 }
 
 namespace pt {
-void MeshRenderer::createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat, VkDevice device) {
+void MeshRenderer::createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat) {
     swapChainImageViews.resize(swapChainImages.size());
     
     for (size_t i = 0; i < swapChainImages.size(); i++) {
@@ -54,7 +54,7 @@ void MeshRenderer::createImageViews(std::span<VkImage> swapChainImages, VkFormat
     }
 }
 
-void MeshRenderer::createRenderPass(VkFormat swapChainImageFormat, VkDevice device) {
+void MeshRenderer::createRenderPass(VkFormat swapChainImageFormat) {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = swapChainImageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -95,12 +95,12 @@ void MeshRenderer::createRenderPass(VkFormat swapChainImageFormat, VkDevice devi
     assert(result == VK_SUCCESS);
 }
 
-void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent, VkDevice device) {
+void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent) {
     auto vertShaderCode = readFile("rendering/mesh.vert.glsl.spv");
     auto fragShaderCode = readFile("rendering/mesh.frag.glsl.spv");
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, device);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, device);
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -227,7 +227,7 @@ void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent, VkDevice d
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
-void MeshRenderer::createFramebuffers(VkExtent2D swapChainExtent, VkDevice device) {
+void MeshRenderer::createFramebuffers(VkExtent2D swapChainExtent) {
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -249,7 +249,7 @@ void MeshRenderer::createFramebuffers(VkExtent2D swapChainExtent, VkDevice devic
     }
 }
 
-void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice, VkDevice device) {
+void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice) {
     const VkDeviceSize bufferSize = sizeof(mesh::detail::vertices[0]) * mesh::detail::vertices.size();
 
     vkutils::createBuffer(
@@ -264,7 +264,7 @@ void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice, VkDevice 
 }
 
 
-void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent, VkDevice device) {
+void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent) {
     commandBuffers.resize(swapChainFramebuffers.size());
 
     VkCommandBufferAllocateInfo allocInfo{};
@@ -311,7 +311,7 @@ void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent, VkDevice dev
     }
 }
 
-VkShaderModule MeshRenderer::createShaderModule(const std::vector<char>& code, VkDevice device) {
+VkShaderModule MeshRenderer::createShaderModule(const std::vector<char>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
@@ -323,7 +323,7 @@ VkShaderModule MeshRenderer::createShaderModule(const std::vector<char>& code, V
     return shaderModule;
 }
 
-void MeshRenderer::cleanupSwapChain(VkDevice device) {
+void MeshRenderer::cleanupSwapChain() {
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
         vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
@@ -338,16 +338,21 @@ void MeshRenderer::cleanupSwapChain(VkDevice device) {
     }
 }
 
-void MeshRenderer::cleanup(VkDevice device) {
+void MeshRenderer::cleanup() {
     if (swapChainInitialised) {
         vkDeviceWaitIdle(device);
-        cleanupSwapChain(device);
+        cleanupSwapChain();
         swapChainInitialised = false;
     }
 
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
     vkDestroyCommandPool(device, commandPool, nullptr);
+}
+
+MeshRenderer::~MeshRenderer() {
+    if (!move_detector.moved) 
+        cleanup();
 }
 
 VkVertexInputBindingDescription mesh::detail::Vertex::getBindingDescription() {
