@@ -2,6 +2,7 @@
 #include "core_messages/control.h"
 #include "framework/context.h"
 #include "rendering/vulkan.h"
+#include "rendering/mesh.h"
 #include "window/window.h"
 #include "tests/triangle.h"
 
@@ -18,7 +19,8 @@ protected:
             Quitter{ProgramEnd{}, std::move(p)},
             Window(800, 600, "Triangle Test"),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
-            Triangle(1.0)
+            ctor_args<MeshRenderer>(1.0),
+            Triangle()
         ))
     {}
 
@@ -33,6 +35,8 @@ protected:
     void quitProgram() {
         context.emit_sync(QuitRequested{0});
         ASSERT_EQ(f.get(), 0);
+        context.no_more_messages();
+        context.wait_for_all_events_to_finish();
     }
 private:
     std::promise<int> p;
@@ -41,6 +45,7 @@ private:
         Quitter,
         Window,
         VulkanRendering,
+        MeshRenderer,
         Triangle
     > context;
 

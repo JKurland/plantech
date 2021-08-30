@@ -31,14 +31,6 @@ struct AddMesh {
     Mesh mesh;
 };
 
-namespace mesh::detail {
-    const std::vector<pt::Vertex> vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-    };
-}
-
 class MeshRenderer {
 public:
     MeshRenderer(const MeshRenderer&) = delete;
@@ -62,10 +54,6 @@ public:
         initSwapChain();
     }
 
-    EVENT(ProgramStart) {
-        auto req = AddMesh{Mesh{mesh::detail::vertices}};
-        co_await ctx(std::move(req));
-    }
 
     EVENT(NewSwapChain) {
         assert(!newSwapChainInProgress);
@@ -87,6 +75,7 @@ public:
 
     EVENT(PreRender) {
         if (verticesChanged) {
+            vkDeviceWaitIdle(device);
             cleanupCommandBuffers();
             cleanupVertexBuffer();
 
@@ -133,15 +122,15 @@ private:
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
     SwapChainInfo swapChainInfo;
-    VkDevice device;
-    VkPhysicalDevice physicalDevice;
-    VkCommandPool commandPool;
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
+    VkDevice device = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkCommandPool commandPool = VK_NULL_HANDLE;
+    VkBuffer vertexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
 
-    VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+    VkPipeline graphicsPipeline = VK_NULL_HANDLE;
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     std::vector<VkCommandBuffer> commandBuffers;
