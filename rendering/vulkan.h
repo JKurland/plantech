@@ -93,7 +93,8 @@ struct NewSwapChain {
 
 // emitted before rendering, another render will not
 // be kicked off before all handlers have finished
-// with PreRender
+// with PreRender. Two PreRender events will not happen
+// at the same time.
 struct PreRender {};
 
 struct GetVulkanPhysicalDevice {

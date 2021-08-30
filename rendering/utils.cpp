@@ -1,6 +1,7 @@
 
 #include <vulkan/vulkan.h>
 #include <cassert>
+#include <iostream>
 
 #include "rendering/utils.h"
 

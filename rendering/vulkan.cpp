@@ -420,6 +420,8 @@ VkCommandPool VulkanRendering::createCommandPool() {
 
 void VulkanRendering::copyBuffer(const TransferDataToBuffer& request) {
     const VkDeviceSize bufferSize = request.data.size();
+    if (bufferSize == 0) return;
+
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     vkutils::createBuffer(

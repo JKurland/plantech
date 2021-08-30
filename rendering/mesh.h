@@ -22,6 +22,15 @@ struct Vertex {
     static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
 };
 
+struct Mesh {
+    std::vector<Vertex> vertices;
+};
+
+struct AddMesh {
+    using ResponseT = void;
+    Mesh mesh;
+};
+
 namespace mesh::detail {
     const std::vector<pt::Vertex> vertices = {
         {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -45,13 +54,17 @@ public:
         device(ctx.request_sync(GetVulkanDevice{})),
         physicalDevice(ctx.request_sync(GetVulkanPhysicalDevice{})),
         commandPool(ctx.request_sync(NewCommandPool{})),
-        commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder})),
-        vertices(mesh::detail::vertices)
+        commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder}))
     {
         createVertexBuffer();
         ctx.request_sync(vertexBufferTransferRequest());
 
         initSwapChain();
+    }
+
+    EVENT(ProgramStart) {
+        auto req = AddMesh{Mesh{mesh::detail::vertices}};
+        co_await ctx(std::move(req));
     }
 
     EVENT(NewSwapChain) {
@@ -73,6 +86,31 @@ public:
     }
 
     EVENT(PreRender) {
+        if (verticesChanged) {
+            cleanupCommandBuffers();
+            cleanupVertexBuffer();
+
+            createVertexBuffer();
+            createCommandBuffers();
+            co_await ctx(vertexBufferTransferRequest());
+
+            auto req = UpdateCommandBuffers{
+                commandBufferHandle,
+                commandBuffers,
+            };
+            co_await ctx(req);
+            verticesChanged = false;
+        }
+        co_return;
+    }
+
+    REQUEST(AddMesh) {
+        verticesChanged = true;
+        vertices.insert(
+            vertices.end(),
+            request.mesh.vertices.begin(),
+            request.mesh.vertices.end()
+        );
         co_return;
     }
 
@@ -112,6 +150,7 @@ private:
 
     bool newSwapChainInProgress = false;
 
+    bool verticesChanged = false;
     std::vector<pt::Vertex> vertices;
 
     MoveDetector move_detector;

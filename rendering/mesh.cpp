@@ -260,15 +260,17 @@ void MeshRenderer::createFramebuffers() {
 void MeshRenderer::createVertexBuffer() {
     const VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-    vkutils::createBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        device,
-        physicalDevice,
-        vertexBuffer,
-        vertexBufferMemory
-    );
+    if (bufferSize > 0) {
+        vkutils::createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            device,
+            physicalDevice,
+            vertexBuffer,
+            vertexBufferMemory
+        );
+    }
 }
 
 
@@ -315,13 +317,15 @@ void MeshRenderer::createCommandBuffers() {
         renderPassInfo.pClearValues = &clearColor;
 
         vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkBuffer vertexBuffers[] = {vertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+        if (vertexBuffer != VK_NULL_HANDLE) {
+            vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+            VkBuffer vertexBuffers[] = {vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+            vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
+        }
 
-        vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
         vkCmdEndRenderPass(commandBuffers[i]);
 
         result = vkEndCommandBuffer(commandBuffers[i]);
@@ -362,15 +366,17 @@ void MeshRenderer::cleanupSwapChain() {
 }
 
 void MeshRenderer::cleanupVertexBuffer() {
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
-    vkDestroyCommandPool(device, commandPool, nullptr);
+    if (vertexBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, vertexBuffer, nullptr);
+        vkFreeMemory(device, vertexBufferMemory, nullptr);
+    }
 }
 
 void MeshRenderer::cleanup() {
     vkDeviceWaitIdle(device);
     cleanupSwapChain();
     cleanupVertexBuffer();
+    vkDestroyCommandPool(device, commandPool, nullptr);
 }
 
 MeshRenderer::~MeshRenderer() {
