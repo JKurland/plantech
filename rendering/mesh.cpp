@@ -124,8 +124,8 @@ void MeshRenderer::createGraphicsPipeline() {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    auto bindingDescription = mesh::detail::Vertex::getBindingDescription();
-    auto attributeDescriptions = mesh::detail::Vertex::getAttributeDescriptions();
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -373,7 +373,7 @@ MeshRenderer::~MeshRenderer() {
         cleanup();
 }
 
-VkVertexInputBindingDescription mesh::detail::Vertex::getBindingDescription() {
+VkVertexInputBindingDescription Vertex::getBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;
     bindingDescription.stride = sizeof(Vertex);
@@ -381,7 +381,7 @@ VkVertexInputBindingDescription mesh::detail::Vertex::getBindingDescription() {
     return bindingDescription;
 }
 
-std::array<VkVertexInputAttributeDescription, 2> mesh::detail::Vertex::getAttributeDescriptions() {
+std::array<VkVertexInputAttributeDescription, 2> Vertex::getAttributeDescriptions() {
     std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
 
     attributeDescriptions[0].binding = 0;

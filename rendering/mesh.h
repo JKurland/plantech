@@ -14,16 +14,17 @@
 
 namespace pt {
 
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec3 colour;
+
+    static VkVertexInputBindingDescription getBindingDescription();
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+};
+
 namespace mesh::detail {
-    struct Vertex {
-        glm::vec2 pos;
-        glm::vec3 colour;
 
-        static VkVertexInputBindingDescription getBindingDescription();
-        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
-    };
-
-    const std::vector<pt::mesh::detail::Vertex> vertices = {
+    const std::vector<pt::Vertex> vertices = {
         {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
@@ -107,7 +108,7 @@ private:
 
     bool newSwapChainInProgress = false;
 
-    std::vector<pt::mesh::detail::Vertex> vertices;
+    std::vector<pt::Vertex> vertices;
 
     MoveDetector move_detector;
 };
