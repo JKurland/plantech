@@ -346,13 +346,16 @@ void MeshRenderer::cleanupSwapChain() {
     }
 }
 
-void MeshRenderer::cleanup() {
-    vkDeviceWaitIdle(device);
-    cleanupSwapChain();
-
+void MeshRenderer::cleanupVertexBuffer() {
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
     vkDestroyCommandPool(device, commandPool, nullptr);
+}
+
+void MeshRenderer::cleanup() {
+    vkDeviceWaitIdle(device);
+    cleanupSwapChain();
+    cleanupVertexBuffer();
 }
 
 MeshRenderer::~MeshRenderer() {

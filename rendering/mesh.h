@@ -86,7 +86,9 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandBuffers();
+
     void cleanupSwapChain();
+    void cleanupVertexBuffer();
     void cleanup();
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
