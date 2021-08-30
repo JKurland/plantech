@@ -410,6 +410,39 @@ VkCommandPool VulkanRendering::createCommandPool() {
     return pool;
 }
 
+
+void VulkanRendering::copyBuffer(const TransferDataToBuffer& request) {
+    const VkDeviceSize bufferSize = request.data.size();
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    vkutils::createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        device,
+        physicalDevice,
+        stagingBuffer,
+        stagingBufferMemory
+    );
+
+    void* data;
+    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    std::memcpy(data, request.data.data(), (size_t) bufferSize);
+    vkUnmapMemory(device, stagingBufferMemory);
+
+    vkutils::copyBuffer(
+        device,
+        commandPool,
+        graphicsQueue,
+        stagingBuffer,
+        request.dst_buffer,
+        bufferSize
+    );
+
+    vkDestroyBuffer(device, stagingBuffer, nullptr);
+    vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
 void VulkanRendering::cleanupSwapChain() {
     vkDestroySwapchainKHR(device, swapChain, nullptr);
 }
