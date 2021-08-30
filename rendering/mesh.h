@@ -69,11 +69,11 @@ public:
             commandBufferHandle = co_await ctx(NewCommandBufferHandle{renderOrder});
         }
 
-        createImageViews(event.swapChainImages, event.swapChainImageFormat);
-        createRenderPass(event.swapChainImageFormat);
-        createGraphicsPipeline(event.swapChainExtent);
-        createFramebuffers(event.swapChainExtent);
-        createCommandBuffers(event.swapChainExtent);
+        createImageViews(event.info.images, event.info.imageFormat);
+        createRenderPass(event.info.imageFormat);
+        createGraphicsPipeline(event.info.extent);
+        createFramebuffers(event.info.extent);
+        createCommandBuffers(event.info.extent);
 
         auto req = UpdateCommandBuffers{
             *commandBufferHandle,

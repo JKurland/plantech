@@ -80,10 +80,14 @@ struct TransferDataToBuffer {
     VkBuffer dst_buffer;
 };
 
+struct SwapChainInfo {
+    std::span<VkImage> images;
+    VkFormat imageFormat;
+    VkExtent2D extent;
+};
+
 struct NewSwapChain {
-    std::span<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
+    SwapChainInfo info;
     VkDevice device;
 };
 
@@ -119,10 +123,12 @@ public:
             if constexpr (ctx.template can_handle<NewSwapChain>()) {
                 vkDeviceWaitIdle(device);
                 co_await ctx.emit_await(NewSwapChain{
-                    .swapChainImages = std::span(swapChainImages),
-                    .swapChainImageFormat = swapChainImageFormat,
-                    .swapChainExtent = swapChainExtent,
-                    .device = device,
+                    SwapChainInfo {
+                        std::span(swapChainImages),
+                        swapChainImageFormat,
+                        swapChainExtent,
+                    },
+                    device,
                 });
             }
             newSwapChain = false;

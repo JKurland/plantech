@@ -44,11 +44,11 @@ public:
         }
 
         device = event.device;
-        createImageViews(event.swapChainImages, event.swapChainImageFormat, event.device);
-        createRenderPass(event.swapChainImageFormat, event.device);
-        createGraphicsPipeline(event.swapChainExtent, event.device);
-        createFramebuffers(event.swapChainExtent, event.device);
-        createCommandBuffers(event.swapChainExtent, event.device);
+        createImageViews(event.info.images, event.info.imageFormat, event.device);
+        createRenderPass(event.info.imageFormat, event.device);
+        createGraphicsPipeline(event.info.extent, event.device);
+        createFramebuffers(event.info.extent, event.device);
+        createCommandBuffers(event.info.extent, event.device);
 
         auto req = UpdateCommandBuffers{
             *commandBufferHandle,
