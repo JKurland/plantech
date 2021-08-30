@@ -37,7 +37,7 @@ int main() {
         Window(800, 600, "Application"),
         ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
-        ctor_args<MeshRenderer>()
+        ctor_args<MeshRenderer>(1.0)
     );
 
     context.emit_sync(ProgramStart{});

@@ -257,7 +257,7 @@ void MeshRenderer::createFramebuffers() {
     }
 }
 
-void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice) {
+void MeshRenderer::createVertexBuffer() {
     const VkDeviceSize bufferSize = sizeof(mesh::detail::vertices[0]) * mesh::detail::vertices.size();
 
     vkutils::createBuffer(
@@ -271,6 +271,16 @@ void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice) {
     );
 }
 
+
+TransferDataToBuffer MeshRenderer::vertexBufferTransferRequest() {
+    return TransferDataToBuffer{
+        .data = std::span(
+            reinterpret_cast<const char*>(mesh::detail::vertices.data()),
+            mesh::detail::vertices.size() * sizeof(mesh::detail::vertices[0])
+        ),
+        .dst_buffer = vertexBuffer,
+    };
+}
 
 void MeshRenderer::createCommandBuffers() {
     commandBuffers.resize(swapChainFramebuffers.size());

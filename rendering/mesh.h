@@ -40,21 +40,15 @@ public:
     ~MeshRenderer();
 
     template<IsContext C>
-    MeshRenderer(C& ctx): 
+    MeshRenderer(C& ctx, double renderOrder): 
         swapChainInfo(ctx.request_sync(GetSwapChainInfo{})),
         device(ctx.request_sync(GetVulkanDevice{})),
+        physicalDevice(ctx.request_sync(GetVulkanPhysicalDevice{})),
         commandPool(ctx.request_sync(NewCommandPool{})),
         commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder}))
     {
-        createVertexBuffer(ctx.request_sync(GetVulkanPhysicalDevice{}));
-
-        ctx.request_sync(TransferDataToBuffer{
-            .data = std::span(
-                reinterpret_cast<const char*>(mesh::detail::vertices.data()),
-                mesh::detail::vertices.size() * sizeof(mesh::detail::vertices[0])
-            ),
-            .dst_buffer = vertexBuffer,
-        });
+        createVertexBuffer();
+        ctx.request_sync(vertexBufferTransferRequest());
 
         initSwapChain();
     }
@@ -78,7 +72,8 @@ public:
     }
 
 private:
-    void createVertexBuffer(VkPhysicalDevice physicalDevice);
+    void createVertexBuffer();
+    TransferDataToBuffer vertexBufferTransferRequest();
 
     void initSwapChain();
     void createImageViews();
@@ -93,10 +88,9 @@ private:
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
-    double renderOrder = 0.0;
-
     SwapChainInfo swapChainInfo;
     VkDevice device;
+    VkPhysicalDevice physicalDevice;
     VkCommandPool commandPool;
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
