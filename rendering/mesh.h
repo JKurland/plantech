@@ -40,7 +40,10 @@ public:
     ~MeshRenderer();
 
     template<IsContext C>
-    MeshRenderer(C& ctx) {
+    MeshRenderer(C& ctx): 
+        swapChainInfo(ctx.request_sync(GetSwapChainInfo{})),
+        commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder}))
+    {
         commandPool = ctx.request_sync(NewCommandPool{});
 
         device = ctx.request_sync(GetVulkanDevice{});
@@ -59,24 +62,20 @@ public:
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
 
-
         if (swapChainInitialised) {
             cleanupSwapChain();
             swapChainInitialised = false;
         }
 
-        if (!commandBufferHandle.has_value()) {
-            commandBufferHandle = co_await ctx(NewCommandBufferHandle{renderOrder});
-        }
-
-        createImageViews(event.info.images, event.info.imageFormat);
-        createRenderPass(event.info.imageFormat);
-        createGraphicsPipeline(event.info.extent);
-        createFramebuffers(event.info.extent);
-        createCommandBuffers(event.info.extent);
+        swapChainInfo = event.info;
+        createImageViews();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFramebuffers();
+        createCommandBuffers();
 
         auto req = UpdateCommandBuffers{
-            *commandBufferHandle,
+            commandBufferHandle,
             commandBuffers,
         };
         co_await ctx(req);
@@ -88,11 +87,11 @@ public:
 private:
     void createVertexBuffer(VkPhysicalDevice physicalDevice);
 
-    void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat);
-    void createRenderPass(VkFormat swapChainImageFormat);
-    void createGraphicsPipeline(VkExtent2D swapChainExtent);
-    void createFramebuffers(VkExtent2D swapChainExtent);
-    void createCommandBuffers(VkExtent2D swapChainExtent);
+    void createImageViews();
+    void createRenderPass();
+    void createGraphicsPipeline();
+    void createFramebuffers();
+    void createCommandBuffers();
     void cleanupSwapChain();
     void cleanup();
 
@@ -100,6 +99,7 @@ private:
 
     double renderOrder = 0.0;
 
+    SwapChainInfo swapChainInfo;
     VkDevice device;
     VkCommandPool commandPool;
     VkBuffer vertexBuffer;
@@ -112,7 +112,7 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
     std::vector<VkCommandBuffer> commandBuffers;
 
-    std::optional<CommandBufferHandle> commandBufferHandle;
+    CommandBufferHandle commandBufferHandle;
 
     bool newSwapChainInProgress = false;
     bool swapChainInitialised = false;

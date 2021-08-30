@@ -29,15 +29,15 @@ namespace {
 }
 
 namespace pt {
-void MeshRenderer::createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat) {
-    swapChainImageViews.resize(swapChainImages.size());
+void MeshRenderer::createImageViews() {
+    swapChainImageViews.resize(swapChainInfo.images.size());
     
-    for (size_t i = 0; i < swapChainImages.size(); i++) {
+    for (size_t i = 0; i < swapChainInfo.images.size(); i++) {
         VkImageViewCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        createInfo.image = swapChainImages[i];
+        createInfo.image = swapChainInfo.images[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = swapChainImageFormat;
+        createInfo.format = swapChainInfo.imageFormat;
         createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -54,9 +54,9 @@ void MeshRenderer::createImageViews(std::span<VkImage> swapChainImages, VkFormat
     }
 }
 
-void MeshRenderer::createRenderPass(VkFormat swapChainImageFormat) {
+void MeshRenderer::createRenderPass() {
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.format = swapChainInfo.imageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -95,7 +95,7 @@ void MeshRenderer::createRenderPass(VkFormat swapChainImageFormat) {
     assert(result == VK_SUCCESS);
 }
 
-void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent) {
+void MeshRenderer::createGraphicsPipeline() {
     auto vertShaderCode = readFile("rendering/mesh.vert.glsl.spv");
     auto fragShaderCode = readFile("rendering/mesh.frag.glsl.spv");
 
@@ -134,14 +134,14 @@ void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent) {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float) swapChainExtent.width;
-    viewport.height = (float) swapChainExtent.height;
+    viewport.width = (float) swapChainInfo.extent.width;
+    viewport.height = (float) swapChainInfo.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = swapChainExtent;
+    scissor.extent = swapChainInfo.extent;
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -227,7 +227,7 @@ void MeshRenderer::createGraphicsPipeline(VkExtent2D swapChainExtent) {
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
 
-void MeshRenderer::createFramebuffers(VkExtent2D swapChainExtent) {
+void MeshRenderer::createFramebuffers() {
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -240,8 +240,8 @@ void MeshRenderer::createFramebuffers(VkExtent2D swapChainExtent) {
         framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = 1;
         framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = swapChainExtent.width;
-        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.width = swapChainInfo.extent.width;
+        framebufferInfo.height = swapChainInfo.extent.height;
         framebufferInfo.layers = 1;
 
         VkResult result = vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]);
@@ -264,7 +264,7 @@ void MeshRenderer::createVertexBuffer(VkPhysicalDevice physicalDevice) {
 }
 
 
-void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent) {
+void MeshRenderer::createCommandBuffers() {
     commandBuffers.resize(swapChainFramebuffers.size());
 
     VkCommandBufferAllocateInfo allocInfo{};
@@ -290,7 +290,7 @@ void MeshRenderer::createCommandBuffers(VkExtent2D swapChainExtent) {
         renderPassInfo.renderPass = renderPass;
         renderPassInfo.framebuffer = swapChainFramebuffers[i];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = swapChainExtent;
+        renderPassInfo.renderArea.extent = swapChainInfo.extent;
 
         VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
         renderPassInfo.clearValueCount = 1;
