@@ -17,7 +17,7 @@ protected:
         f(p.get_future()),
         context(make_context(
             Quitter{ProgramEnd{}, std::move(p)},
-            Window(800, 600, "Triangle Test"),
+            Window(800, 600, "Triangle Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
             ctor_args<MeshRenderer>(1.0),
             Triangle()
@@ -41,6 +41,9 @@ protected:
 private:
     std::promise<int> p;
     std::future<int> f;
+
+    // we don't call it in these tests but Window needs it to be happy
+    std::function<void()> pollWindow;
     Context<
         Quitter,
         Window,
