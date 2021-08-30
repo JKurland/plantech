@@ -341,11 +341,16 @@ VkShaderModule MeshRenderer::createShaderModule(const std::vector<char>& code) {
     return shaderModule;
 }
 
+void MeshRenderer::cleanupCommandBuffers() {
+    vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+}
+
 void MeshRenderer::cleanupSwapChain() {
+    cleanupCommandBuffers();
+
     for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
         vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
     }
-    vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);

@@ -23,7 +23,6 @@ struct Vertex {
 };
 
 namespace mesh::detail {
-
     const std::vector<pt::Vertex> vertices = {
         {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -84,6 +83,7 @@ private:
     void createFramebuffers();
     void createCommandBuffers();
 
+    void cleanupCommandBuffers();
     void cleanupSwapChain();
     void cleanupVertexBuffer();
     void cleanup();
