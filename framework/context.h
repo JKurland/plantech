@@ -257,6 +257,7 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
+        assert(!stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
         static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
@@ -273,6 +274,7 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     void emit_sync(E&& event) {
+        assert(!stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
         static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
@@ -289,6 +291,7 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     auto emit_await(E&& event) {
+        assert(!stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
         static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
@@ -306,6 +309,7 @@ public:
 
     template<Request R>
     auto operator()(const R& request) {
+        assert(!stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::RequestPred<Context, R>>();
         static_assert(indexes.size() != 0, "Nothing to handle request R");
         static_assert(indexes.size() == 1, "More than one handler for request R");
@@ -318,6 +322,7 @@ public:
 
     template<Request R>
     auto request_sync(const R& request) {
+        assert(!stopped);
         return run_awaitable_sync(thread_pool, (*this)(request));
     }
 
@@ -343,6 +348,11 @@ public:
         return indexes.size() > 0;
     }
 
+    // should only be called by main
+    void no_more_messages() {
+        stopped = true;
+    }
+
     ~Context() {
         wait_for_all_events_to_finish();
     }
@@ -354,6 +364,8 @@ private:
     std::condition_variable cv;
 
     FixedCoroutineThreadPool<1> thread_pool;
+
+    std::atomic<bool> stopped = false;
 
     template<typename...OtherHandlerTs, typename NewHandlerT>
     Context(Context<OtherHandlerTs...>&& old, NewHandlerT&& new_handler):

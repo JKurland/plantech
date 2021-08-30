@@ -22,6 +22,9 @@ public:
     Triangle& operator=(const Triangle&) = delete;
     Triangle& operator=(Triangle&&) = default;
 
+    ~Triangle() {
+        cleanup(device);
+    }
 
     EVENT(NewSwapChain) {
         assert(!newSwapChainInProgress);
@@ -40,6 +43,7 @@ public:
             commandPool = co_await ctx(NewCommandPool{});
         }
 
+        device = event.device;
         createImageViews(event.swapChainImages, event.swapChainImageFormat, event.device);
         createRenderPass(event.swapChainImageFormat, event.device);
         createGraphicsPipeline(event.swapChainExtent, event.device);
@@ -56,12 +60,6 @@ public:
         initialised = true;
     }
 
-    EVENT(DeleteSwapChain) {
-        assert(!newSwapChainInProgress);
-        cleanup(event.device);
-        co_return;
-    }
-
 private:
     void createImageViews(std::span<VkImage> swapChainImages, VkFormat swapChainImageFormat, VkDevice device);
     void createRenderPass(VkFormat swapChainImageFormat, VkDevice device);
@@ -75,6 +73,7 @@ private:
 
     double renderOrder;
 
+    VkDevice device;
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
