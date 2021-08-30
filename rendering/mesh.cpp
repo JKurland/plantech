@@ -258,7 +258,7 @@ void MeshRenderer::createFramebuffers() {
 }
 
 void MeshRenderer::createVertexBuffer() {
-    const VkDeviceSize bufferSize = sizeof(mesh::detail::vertices[0]) * mesh::detail::vertices.size();
+    const VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
     vkutils::createBuffer(
         bufferSize,
@@ -275,8 +275,8 @@ void MeshRenderer::createVertexBuffer() {
 TransferDataToBuffer MeshRenderer::vertexBufferTransferRequest() {
     return TransferDataToBuffer{
         .data = std::span(
-            reinterpret_cast<const char*>(mesh::detail::vertices.data()),
-            mesh::detail::vertices.size() * sizeof(mesh::detail::vertices[0])
+            reinterpret_cast<const char*>(vertices.data()),
+            vertices.size() * sizeof(vertices[0])
         ),
         .dst_buffer = vertexBuffer,
     };
@@ -321,7 +321,7 @@ void MeshRenderer::createCommandBuffers() {
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-        vkCmdDraw(commandBuffers[i], (uint32_t)mesh::detail::vertices.size(), 1, 0, 0);
+        vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
         vkCmdEndRenderPass(commandBuffers[i]);
 
         result = vkEndCommandBuffer(commandBuffers[i]);
