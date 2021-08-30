@@ -8,7 +8,9 @@
 
 namespace pt {
 
-Window::Window(int initial_width, int initial_height, std::string_view title) {
+Window::Window(int initial_width, int initial_height, std::string_view title, std::function<void()>& pollWindow):
+    poll_window(&pollWindow)
+{
     callbacks = std::make_unique<window::detail::Callbacks>();
     stop_poll = std::make_unique<std::atomic<bool>>(false);
 
@@ -25,11 +27,8 @@ Window::Window(int initial_width, int initial_height, std::string_view title) {
 }
 
 void Window::stop_poll_thread() {
-    if (poll_thread.joinable()) {
-        *stop_poll = true;
-        glfwPostEmptyEvent();
-        poll_thread.join();
-    }
+    *stop_poll = true;
+    glfwPostEmptyEvent();
 }
 
 namespace window::detail {

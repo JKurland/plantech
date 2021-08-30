@@ -13,8 +13,13 @@ using namespace pt;
 
 
 int main() {
-    std::promise<int> release_main;
-    std::future<int> release_main_future = release_main.get_future();
+    // filled in by Window and called from main 
+    // since glfw requires many functions to be
+    // called on the main thread.
+    std::function<void()> pollWindow;
+
+    std::promise<int> releaseMain;
+    std::future<int> releaseMainFuture = releaseMain.get_future();
 
     /* context is created as follows:
         Each handler is added to the context in the order they appear in the arguments to make_context.
@@ -34,8 +39,8 @@ int main() {
         during destruction, this is because handlers mustn't send events or requests after returning from their EVENT(ProgramEnd).
     */
     auto context = make_context(
-        Quitter(ProgramEnd{}, std::move(release_main)),
-        Window(800, 600, "Application"),
+        Quitter(ProgramEnd{}, std::move(releaseMain)),
+        Window(800, 600, "Application", pollWindow),
         ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
         ctor_args<MeshRenderer>(1.0),
@@ -44,7 +49,9 @@ int main() {
 
     context.emit_sync(ProgramStart{});
 
-    int ret = release_main_future.get();
+    pollWindow();
+
+    int ret = releaseMainFuture.get();
     context.no_more_messages();
     context.wait_for_all_events_to_finish();
     return ret;

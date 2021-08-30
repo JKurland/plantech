@@ -69,7 +69,7 @@ namespace window::detail {
 
 class Window {
 public:
-    Window(int initial_width, int initial_height, std::string_view title);
+    Window(int initial_width, int initial_height, std::string_view title, std::function<void()>& pollWindow);
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
@@ -107,7 +107,7 @@ public:
             });
         };
 
-        poll_thread = std::thread([&ctx, window=window.get(), stop_poll=stop_poll.get()]{
+        *poll_window = [&ctx, window=window.get(), stop_poll=stop_poll.get()] {
             while (!stop_poll->load()) {
                 glfwWaitEvents();
                 if (glfwWindowShouldClose(window)) {
@@ -115,7 +115,7 @@ public:
                     return;
                 }
             }
-        });
+        };
 
         co_return;
     }
@@ -141,7 +141,7 @@ private:
 
     std::unique_ptr<window::detail::Callbacks> callbacks;
     std::unique_ptr<std::atomic<bool>> stop_poll;
-    std::thread poll_thread;
+    std::function<void()>* poll_window;
     std::unique_ptr<GLFWwindow, window::detail::WindowDelete> window;
 };
 
