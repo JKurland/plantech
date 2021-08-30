@@ -49,6 +49,7 @@ int main() {
 
     context.emit_sync(ProgramStart{});
 
+    // pollWindow will only return when the program ends
     pollWindow();
 
     int ret = releaseMainFuture.get();
