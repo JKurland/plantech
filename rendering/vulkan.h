@@ -99,6 +99,10 @@ struct GetVulkanDevice {
     using ResponseT = VkDevice;
 };
 
+struct GetSwapChainInfo {
+    using ResponseT = SwapChainInfo;
+};
+
 class VulkanRendering {
 public:
     template<IsContext C>
@@ -157,7 +161,6 @@ public:
 
     REQUEST(TransferDataToBuffer) {
         copyBuffer(request);
-
         co_return;
     }
 
@@ -167,6 +170,10 @@ public:
 
     REQUEST(GetVulkanDevice) {
         co_return device;
+    }
+
+    REQUEST(GetSwapChainInfo) {
+        co_return swapChainInfo();
     }
 
 private:
