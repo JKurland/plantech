@@ -72,6 +72,10 @@ public:
         newSwapChainInProgress = false;
     }
 
+    EVENT(PreRender) {
+        co_return;
+    }
+
 private:
     void createVertexBuffer();
     TransferDataToBuffer vertexBufferTransferRequest();

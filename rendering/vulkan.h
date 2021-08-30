@@ -91,6 +91,11 @@ struct NewSwapChain {
     VkDevice device;
 };
 
+// emitted before rendering, another render will not
+// be kicked off before all handlers have finished
+// with PreRender
+struct PreRender {};
+
 struct GetVulkanPhysicalDevice {
     using ResponseT = VkPhysicalDevice;
 };
@@ -134,6 +139,7 @@ public:
             newSwapChain = false;
         }
 
+        co_await ctx.emit_await(PreRender{});
         drawFrame();
     }
 
