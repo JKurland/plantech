@@ -300,6 +300,13 @@ void VulkanRendering::createSwapChain() {
     swapChainExtent = extent;
 }
 
+SwapChainInfo VulkanRendering::swapChainInfo() {
+    return SwapChainInfo {
+        std::span(swapChainImages),
+        swapChainImageFormat,
+        swapChainExtent,
+    };
+}
 
 void VulkanRendering::createSyncObjects() {
     imageAvailableSemaphores.resize(maxFramesInFlight);

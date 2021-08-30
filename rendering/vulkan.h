@@ -123,11 +123,7 @@ public:
             if constexpr (ctx.template can_handle<NewSwapChain>()) {
                 vkDeviceWaitIdle(device);
                 co_await ctx.emit_await(NewSwapChain{
-                    SwapChainInfo {
-                        std::span(swapChainImages),
-                        swapChainImageFormat,
-                        swapChainExtent,
-                    },
+                    swapChainInfo(),
                     device,
                 });
             }
@@ -185,6 +181,7 @@ private:
     void createSyncObjects();
 
     void recreateSwapChain();
+    SwapChainInfo swapChainInfo();
 
     VkCommandPool createCommandPool();
     void copyBuffer(const TransferDataToBuffer& request);
