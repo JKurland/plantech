@@ -55,11 +55,15 @@ public:
             ),
             .dst_buffer = vertexBuffer,
         });
+
+        initSwapChain();
     }
 
     EVENT(NewSwapChain) {
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
+
+        cleanupSwapChain();
 
         swapChainInfo = event.info;
         initSwapChain();
@@ -105,7 +109,6 @@ private:
     CommandBufferHandle commandBufferHandle;
 
     bool newSwapChainInProgress = false;
-    bool swapChainInitialised = false;
 
     MoveDetector move_detector;
 };

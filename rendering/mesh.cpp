@@ -30,18 +30,11 @@ namespace {
 
 namespace pt {
 void MeshRenderer::initSwapChain() {
-    if (swapChainInitialised) {
-        cleanupSwapChain();
-        swapChainInitialised = false;
-    }
-
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
     createFramebuffers();
     createCommandBuffers();
-
-    swapChainInitialised = true;
 }
 
 void MeshRenderer::createImageViews() {
@@ -354,11 +347,8 @@ void MeshRenderer::cleanupSwapChain() {
 }
 
 void MeshRenderer::cleanup() {
-    if (swapChainInitialised) {
-        vkDeviceWaitIdle(device);
-        cleanupSwapChain();
-        swapChainInitialised = false;
-    }
+    vkDeviceWaitIdle(device);
+    cleanupSwapChain();
 
     vkDestroyBuffer(device, vertexBuffer, nullptr);
     vkFreeMemory(device, vertexBufferMemory, nullptr);
