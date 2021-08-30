@@ -31,6 +31,14 @@ struct GetWindowPointer {
     using ResponseT = GLFWwindow*;
 };
 
+struct MouseButton {
+    int button;
+    int action;
+    int mods;
+    double x;
+    double y;
+};
+
 namespace window::detail {
     struct WindowDelete{
         void operator()(GLFWwindow* window);
@@ -48,12 +56,15 @@ namespace window::detail {
 
         // does minimise and restore
         std::function<std::remove_pointer_t<GLFWwindowiconifyfun>> iconify_cb;
+
+        std::function<std::remove_pointer_t<GLFWmousebuttonfun>> mouse_button_cb;
     };
 
     // free functions forward the glfw callback to the callback in Callbacks
     void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods);
     void resize_cb(GLFWwindow* window, int width, int height);
     void iconify_cb(GLFWwindow* window, int iconified);
+    void mouse_button_cb(GLFWwindow* window, int button, int action, int mods);
 }
 
 class Window {
@@ -82,6 +93,18 @@ public:
             } else {
                 assert(false);
             }
+        };
+
+        callbacks->mouse_button_cb = [&ctx](GLFWwindow* window, int button, int action, int mods) {
+            double x, y;
+            glfwGetCursorPos(window, &x, &y);
+            ctx.emit(MouseButton{
+                button,
+                action,
+                mods,
+                x,
+                y
+            });
         };
 
         poll_thread = std::thread([&ctx, window=window.get(), stop_poll=stop_poll.get()]{

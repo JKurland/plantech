@@ -21,6 +21,7 @@ Window::Window(int initial_width, int initial_height, std::string_view title) {
     glfwSetKeyCallback(window.get(), window::detail::key_cb);
     glfwSetFramebufferSizeCallback(window.get(), window::detail::resize_cb);
     glfwSetWindowIconifyCallback(window.get(), window::detail::iconify_cb);
+    glfwSetMouseButtonCallback(window.get(), window::detail::mouse_button_cb);
 }
 
 void Window::stop_poll_thread() {
@@ -66,6 +67,12 @@ namespace window::detail {
         }
     }
 
+    void mouse_button_cb(GLFWwindow* window, int button, int action, int mods) {
+        Callbacks* callbacks = reinterpret_cast<Callbacks*>(glfwGetWindowUserPointer(window));
+        if (callbacks->mouse_button_cb) {
+            callbacks->mouse_button_cb(window, button, action, mods);
+        }
+    }
 
 }
 

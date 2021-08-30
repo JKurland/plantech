@@ -4,6 +4,7 @@
 #include "rendering/vulkan.h"
 #include "rendering/framerate_driver.h"
 #include "rendering/mesh.h"
+#include "application/click_for_shape.h"
 
 #include <future>
 
@@ -37,7 +38,8 @@ int main() {
         Window(800, 600, "Application"),
         ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
-        ctor_args<MeshRenderer>(1.0)
+        ctor_args<MeshRenderer>(1.0),
+        ClickForShape()
     );
 
     context.emit_sync(ProgramStart{});
