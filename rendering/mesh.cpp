@@ -29,9 +29,24 @@ namespace {
 }
 
 namespace pt {
+void MeshRenderer::initSwapChain() {
+    if (swapChainInitialised) {
+        cleanupSwapChain();
+        swapChainInitialised = false;
+    }
+
+    createImageViews();
+    createRenderPass();
+    createGraphicsPipeline();
+    createFramebuffers();
+    createCommandBuffers();
+
+    swapChainInitialised = true;
+}
+
 void MeshRenderer::createImageViews() {
     swapChainImageViews.resize(swapChainInfo.images.size());
-    
+
     for (size_t i = 0; i < swapChainInfo.images.size(); i++) {
         VkImageViewCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

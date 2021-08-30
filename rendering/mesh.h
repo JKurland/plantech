@@ -42,11 +42,10 @@ public:
     template<IsContext C>
     MeshRenderer(C& ctx): 
         swapChainInfo(ctx.request_sync(GetSwapChainInfo{})),
+        device(ctx.request_sync(GetVulkanDevice{})),
+        commandPool(ctx.request_sync(NewCommandPool{})),
         commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder}))
     {
-        commandPool = ctx.request_sync(NewCommandPool{});
-
-        device = ctx.request_sync(GetVulkanDevice{});
         createVertexBuffer(ctx.request_sync(GetVulkanPhysicalDevice{}));
 
         ctx.request_sync(TransferDataToBuffer{
@@ -62,17 +61,8 @@ public:
         assert(!newSwapChainInProgress);
         newSwapChainInProgress = true;
 
-        if (swapChainInitialised) {
-            cleanupSwapChain();
-            swapChainInitialised = false;
-        }
-
         swapChainInfo = event.info;
-        createImageViews();
-        createRenderPass();
-        createGraphicsPipeline();
-        createFramebuffers();
-        createCommandBuffers();
+        initSwapChain();
 
         auto req = UpdateCommandBuffers{
             commandBufferHandle,
@@ -81,12 +71,12 @@ public:
         co_await ctx(req);
 
         newSwapChainInProgress = false;
-        swapChainInitialised = true;
     }
 
 private:
     void createVertexBuffer(VkPhysicalDevice physicalDevice);
 
+    void initSwapChain();
     void createImageViews();
     void createRenderPass();
     void createGraphicsPipeline();
