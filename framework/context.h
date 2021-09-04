@@ -257,36 +257,14 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
-        assert(!stopped);
-        constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
-        static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
-        if constexpr (indexes.size() != 0) {
-            start_event();
-            auto joined = handler_set.call_with(
-                indexes,
-                [&](auto&...handlers) {
-                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
-                }
-            );
-            run_awaitable_async(thread_pool, std::move(joined));
-        }   
+        auto joined = emit_await<AllowUnhandled>(std::forward<E>(event));
+        run_awaitable_async(thread_pool, std::move(joined));
     }
 
     template<bool AllowUnhandled=true, Event E>
     void emit_sync(E&& event) {
-        assert(!stopped);
-        constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
-        static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
-        if constexpr (indexes.size() != 0) {
-            start_event();
-            auto joined = handler_set.call_with(
-                indexes,
-                [&](auto&...handlers) {
-                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
-                }
-            );
-            run_awaitable_sync(thread_pool, std::move(joined));
-        }   
+        auto joined = emit_await<AllowUnhandled>(std::forward<E>(event));
+        run_awaitable_sync(thread_pool, std::move(joined));
     }
 
     template<bool AllowUnhandled=true, Event E>
