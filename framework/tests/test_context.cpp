@@ -182,3 +182,37 @@ TEST_F(TestContext, should_get_answer_for_request_while_handler_is_waiting_neste
 TEST_F(TestContext, emit_sync_shouldnt_wait_for_unawaited_events) {
     assert_emit_sync_doesnt_wait_for_unawaited_events();
 }
+
+
+struct Req {using ResponseT = int;};
+struct Req2 {using ResponseT = int;};
+struct Handler1 {
+    Handler1(int i): i(i) {}
+    REQUEST(Req) {
+        co_return i + 1;
+    }
+
+    int i;
+};
+
+struct Handler2 {
+    template<IsContext C>
+    Handler2(C& ctx) {
+        i = ctx.request_sync(Req{});
+    }
+
+    REQUEST(Req2) {
+        co_return i;
+    }
+
+    int i;
+};
+
+TEST(TestMakeContext, should_allow_calling_previous_handlers_in_ctor) {
+    auto ctx = make_context(
+        Handler1(74),
+        ctor_args<Handler2>()
+    );
+
+    ASSERT_EQ(ctx.request_sync(Req2{}), 75);
+}

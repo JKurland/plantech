@@ -46,7 +46,11 @@ namespace handler_set::detail {
 
     template<typename Pred, typename...Ts>
     constexpr auto filtered_indexes() {
-        return (index_sequence_pred<Pred>{} << ... << index_sequence_builder<Ts>{}).value;
+        if constexpr (sizeof...(Ts) == 0) {
+            return std::index_sequence<>{};
+        } else {
+            return (index_sequence_pred<Pred>{} << ... << index_sequence_builder<Ts>{}).value;
+        }
     }
 
 }

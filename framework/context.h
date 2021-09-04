@@ -312,11 +312,15 @@ public:
         assert(!stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::RequestPred<Context, R>>();
         static_assert(indexes.size() != 0, "Nothing to handle request R");
-        static_assert(indexes.size() == 1, "More than one handler for request R");
+        static_assert(indexes.size() < 2, "More than one handler for request R");
 
         if constexpr (indexes.size() == 1) {
             auto& handler = handler_set.template get<context::detail::get_first(indexes)>();
             return handler.handle(*this, request);
+        } else {
+            // the static asserts have already failed but to stop unhelpful compiler error messages we
+            // still return something from this function
+            return Task<typename R::ResponseT>{};
         }
     }
 
@@ -383,30 +387,30 @@ private:
 
 namespace context::detail {
     struct make_context_friend {
-        template<typename...ContextTs, typename FirstT, typename...ArgTs>
-        static auto make_context_impl(Context<ContextTs...>&& prev_ctx, FirstT&& first, ArgTs&&...args) {
+        template<template<typename...> typename CtxT, typename...PrevHandlerTs, typename FirstT, typename...ArgTs>
+        static auto make_context_impl(CtxT<PrevHandlerTs...>&& prev_ctx, FirstT&& first, ArgTs&&...args) {
             if constexpr (is_ctor_args<std::decay_t<FirstT>>::value) {
                 auto new_handler = std::apply(
                     [&](auto&&...ctor_args){return typename FirstT::Type(prev_ctx, std::forward<decltype(ctor_args)>(ctor_args)...);},
                     first.args
                 );
                 if constexpr (sizeof...(ArgTs) == 0) {
-                    return Context<ContextTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler));
+                    return CtxT<PrevHandlerTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler));
                 } else {
-                    return make_context_impl(Context<ContextTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler)), std::forward<ArgTs>(args)...);
+                    return make_context_impl(CtxT<PrevHandlerTs..., decltype(new_handler)>(std::move(prev_ctx), std::move(new_handler)), std::forward<ArgTs>(args)...);
                 }
             } else {
                 if constexpr (sizeof...(ArgTs) == 0) {
-                    return Context<ContextTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first));
+                    return CtxT<PrevHandlerTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first));
                 } else {
-                    return make_context_impl(Context<ContextTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first)), std::forward<ArgTs>(args)...);
+                    return make_context_impl(CtxT<PrevHandlerTs..., std::decay_t<FirstT>>(std::move(prev_ctx), std::forward<FirstT>(first)), std::forward<ArgTs>(args)...);
                 }
             }
         }
 
-        template<typename...ArgTs>
+        template<template<typename...> typename CtxT, typename...ArgTs>
         static auto make_context_impl_outer(ArgTs&&...args) {
-            return make_context_impl(Context<>(), std::forward<ArgTs>(args)...);
+            return make_context_impl(CtxT<>(), std::forward<ArgTs>(args)...);
         }
     };
 } // context::detail
@@ -414,7 +418,7 @@ namespace context::detail {
 
 template<typename...ArgTs>
 auto make_context(ArgTs&&...args) {
-    return context::detail::make_context_friend::make_context_impl_outer(std::forward<ArgTs>(args)...);
+    return context::detail::make_context_friend::make_context_impl_outer<Context>(std::forward<ArgTs>(args)...);
 }
 
 
