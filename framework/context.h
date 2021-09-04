@@ -257,14 +257,12 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
-        auto joined = emit_await<AllowUnhandled>(std::forward<E>(event));
-        run_awaitable_async(thread_pool, std::move(joined));
+        run_awaitable_async(thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
     }
 
     template<bool AllowUnhandled=true, Event E>
     void emit_sync(E&& event) {
-        auto joined = emit_await<AllowUnhandled>(std::forward<E>(event));
-        run_awaitable_sync(thread_pool, std::move(joined));
+        run_awaitable_sync(thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
     }
 
     template<bool AllowUnhandled=true, Event E>
