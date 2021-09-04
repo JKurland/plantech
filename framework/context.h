@@ -201,13 +201,13 @@ namespace context::detail {
         int num_joined;
     };
 
-    template<Event E, IsContext C, typename...HandlerTs>
-    joined join(CoroutineThreadPool& pool, C& ctx, E event, HandlerTs&...handlers) {
+    template<typename F, Event E, IsContext C, typename...HandlerTs>
+    joined join(CoroutineThreadPool& pool, F&& done_cb, C& ctx, E event, HandlerTs&...handlers) {
         std::atomic<int> running_count = 0;
         std::coroutine_handle<> continuation;
 
         (co_await make_joinable(handlers.handle(ctx, event), running_count, continuation), ..., co_await wait_for_joined{&running_count, &continuation, sizeof...(HandlerTs)});
-        ctx.end_event();
+        done_cb(ctx);
     }
 
     template<IsContext C, Event E>
@@ -275,7 +275,13 @@ public:
             return handler_set.call_with(
                 indexes,
                 [&](auto&...handlers) {
-                    return context::detail::join(thread_pool, *this, std::forward<E>(event), handlers...);
+                    return context::detail::join(
+                        thread_pool,
+                        [](Context& ctx){ctx.end_event();},
+                        *this,
+                        std::forward<E>(event),
+                        handlers...
+                    );
                 }
             );
         } else {
@@ -306,16 +312,6 @@ public:
         return run_awaitable_sync(thread_pool, (*this)(request));
     }
 
-    void start_event() {
-        events_in_progress++;
-    }
-
-    void end_event() {
-        size_t prev = events_in_progress--;
-        if (prev == 1) {
-            cv.notify_all();
-        }
-    }
 
     void wait_for_all_events_to_finish() {
         std::unique_lock l(m);
@@ -353,6 +349,17 @@ private:
     {}
 
     Context(): handler_set() {}
+
+    void start_event() {
+        events_in_progress++;
+    }
+
+    void end_event() {
+        size_t prev = events_in_progress--;
+        if (prev == 1) {
+            cv.notify_all();
+        }
+    }
 
     friend context::detail::make_context_friend;
 
