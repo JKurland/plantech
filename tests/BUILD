@@ -1,5 +1,3 @@
-load("@//build_defs:glsl.bzl", "spirv")
-
 cc_test(
     name = "test",
     srcs = glob(["*.cpp", "*.h"]),
