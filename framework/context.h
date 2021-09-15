@@ -312,19 +312,18 @@ public:
         return run_awaitable_sync(thread_pool, (*this)(request));
     }
 
-
-    void wait_for_all_events_to_finish() {
-        std::unique_lock l(m);
-        cv.wait(l, [&]{return events_in_progress == 0;});
-    }
-
     template<Event E>
     static constexpr bool can_handle() {
         constexpr auto indexes = decltype(handler_set)::template true_indexes<context::detail::EventPred<Context, E>>();
         return indexes.size() > 0;
     }
 
-    // should only be called by main
+    void wait_for_all_events_to_finish() {
+        std::unique_lock l(m);
+        cv.wait(l, [&]{return events_in_progress == 0;});
+    }
+
+    // should only be called by main or tests
     void no_more_messages() {
         stopped = true;
     }
