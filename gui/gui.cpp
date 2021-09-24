@@ -42,10 +42,15 @@ void Gui::mouseButtonDown(GuiHandle target) {
 
 void Gui::mouseButtonUp(GuiHandle target) {
     get(target).mouseButtonUp();
+
+    if (mouseFocusedNode == 0) return;
+
     auto ret = nodes.find(mouseFocusedNode);
     if (ret != nodes.end()) {
         ret->second.element->mouseButtonUp();
     }
+
+    mouseFocusedNode = 0;
 }
 
 }
