@@ -7,26 +7,27 @@ Gui::Gui(): next_handle_index(1) {
         0,
         Node{
             std::make_unique<GuiRoot>(),
-            nullptr,
-            std::vector<GuiElement*>{}
+            GuiHandle(0),
+            std::vector<GuiHandle>{}
         }
     );
 }
 
 GuiHandle Gui::add(std::unique_ptr<GuiElement> element, GuiHandle parent) {
-    auto ret = nodes.emplace(
+    nodes.emplace(
         next_handle_index,
         Node{
             std::move(element),
-            nodes.find(parent.index)->second.element.get(),
-            std::vector<GuiElement*>{} // children
+            parent,
+            std::vector<GuiHandle>{} // children
         }
     );
 
-    nodes[parent.index].children.push_back(ret.first->second.element.get());
-
     GuiHandle new_handle(next_handle_index);
     next_handle_index++;
+
+    auto parent_iter = nodes.find(parent.index);
+    parent_iter->second.children.push_back(new_handle);
     return new_handle;
 }
 

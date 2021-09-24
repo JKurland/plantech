@@ -39,8 +39,8 @@ private:
 
     struct Node {
         std::unique_ptr<GuiElement> element;
-        GuiElement* parent;
-        std::vector<GuiElement*> children;
+        GuiHandle parent;
+        std::vector<GuiHandle> children;
     };
 
     std::unordered_map<size_t, Node> nodes;
