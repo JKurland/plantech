@@ -8,23 +8,23 @@ using namespace pt;
 
 class TestButton: public ::testing::Test {
 protected:
-    void assertUnclicked(GuiHandle handle) {
-        ASSERT_FALSE(gui.get<Button>(handle).clicked);
+    void assertUnclicked(GuiHandle<Button> handle) {
+        ASSERT_FALSE(gui.get(handle).clicked);
     }
 
-    void assertClicked(GuiHandle handle) {
-        ASSERT_TRUE(gui.get<Button>(handle).clicked);
+    void assertClicked(GuiHandle<Button> handle) {
+        ASSERT_TRUE(gui.get(handle).clicked);
     }
 
-    void mouseButtonDown(GuiHandle handle) {
+    void mouseButtonDown(auto handle) {
         gui.mouseButtonDown(handle);
     }
 
-    void mouseButtonUp(GuiHandle handle) {
+    void mouseButtonUp(auto handle) {
         gui.mouseButtonUp(handle);
     }
 
-    GuiHandle addButton() {return gui.add(std::make_unique<Button>(), gui.root());}
+    auto addButton() {return gui.add(Button(), gui.root());}
     Gui gui;
 };
 

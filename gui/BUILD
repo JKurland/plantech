@@ -2,7 +2,7 @@ cc_library(
     name = "gui",
     hdrs = glob(["*.h"]),
     srcs = glob(["*.cpp"]),
-    deps = ["//core_messages", "//framework"],
+    deps = ["//core_messages", "//framework", "//utils"],
     linkopts = ["-ldl"],
     copts = ["-Werror"],
     visibility = ["//visibility:public"],
