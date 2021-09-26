@@ -1,8 +1,8 @@
 cc_library(
-    name = "gui",
+    name = "gui_rendering",
     hdrs = glob(["*.h"]),
     srcs = glob(["*.cpp"]),
-    deps = ["//utils"],
+    deps = ["//gui"],
     linkopts = ["-ldl"],
     copts = ["-Werror"],
     visibility = ["//visibility:public"],
@@ -11,7 +11,7 @@ cc_library(
 cc_test(
     name = "test",
     srcs = glob(["tests/*.cpp"]),
-    deps = [":gui", "@com_google_googletest//:gtest_main"],
+    deps = [":gui_rendering", "@com_google_googletest//:gtest_main"],
     copts = ["-Werror"],
 )
 
