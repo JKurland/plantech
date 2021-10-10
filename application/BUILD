@@ -2,7 +2,7 @@ cc_binary(
     name = "application",
     srcs = glob(["*.cpp", "*.h"]),
     visibility = ["//visibility:public"],
-    deps = ["//core_messages", "//framework", "//window", "//rendering", "//utils"],
+    deps = ["//core_messages", "//framework", "//window", "//rendering", "//utils", "//gui_rendering"],
     copts = ["-Werror"],
 )
 

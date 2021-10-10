@@ -1,4 +1,4 @@
 build --cxxopt=-std=c++20 --cxxopt=-fcoroutines
 build --copt=-fdiagnostics-color=always
 
-test --test_env=DISPLAY --test_env=NO_AT_BRIDGE
+test --test_env=DISPLAY --test_env=NO_AT_BRIDGE --test_env=MESA_GLSL_CACHE_DISABLE=1

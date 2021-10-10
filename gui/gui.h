@@ -7,6 +7,7 @@
 #include <compare>
 #include <bit>
 #include <concepts>
+#include <functional>
 
 #include "utils/template_meta.h"
 #include "gui/element.h"
@@ -55,9 +56,22 @@ private:
     friend class GuiImpl;
     friend class std::hash<GuiHandle>;
 };
+} // pt
 
+namespace std {
+    template<typename...Ts>
+    struct hash<::pt::GuiHandle<Ts...>> {
+        constexpr size_t operator()(const ::pt::GuiHandle<Ts...>& handle) const noexcept {
+            if constexpr (sizeof...(Ts) == 1) {
+                return handle.index;
+            } else {
+                return handle.index ^ std::rotl(handle.typeIndex, sizeof(handle.typeIndex)*4);
+            }
+        }
+    };
+}
 
-
+namespace pt {
 template<typename...ElemTs>
 class GuiImpl {
 public:
@@ -94,6 +108,12 @@ public:
     template<typename F>
     auto visit(const GuiHandle<ElemTs...>& handle, F&& f);
 
+    template<typename F>
+    void visitAll(F&& f) const;
+
+    template<typename T, typename F>
+    void visitAllType(F&& f) const;
+
     template<typename...Ts>
     static GuiHandle<ElemTs...> convertHandle(const GuiHandle<Ts...>& handle);
 private:
@@ -122,7 +142,7 @@ private:
 
 template<typename...ElemTs>
 GuiImpl<ElemTs...>::GuiImpl(): nextHandleIndex(1), mouseFocusedNode(convertHandle(root())) {
-    std::get<ppFindType<GuiRoot, ElemTs...>()>(elements).emplace(0, GuiRoot{});
+    std::get<ppFindType<GuiRoot, ElemTs...>()>(elements).emplace(root().index, GuiRoot{});
     nodes.emplace(
         convertHandle(root()),
         Node{
@@ -250,6 +270,21 @@ auto GuiImpl<ElemTs...>::visit(const GuiHandle<ElemTs...>& handle, F&& f) {
 
 
 template<typename...ElemTs>
+template<typename F>
+void GuiImpl<ElemTs...>::visitAll(F&& f) const {
+    (visitAllType<ElemTs>(f),...);
+}
+
+template<typename...ElemTs>
+template<typename T, typename F>
+void GuiImpl<ElemTs...>::visitAllType(F&& f) const {
+    constexpr size_t typeIndex = ppFindType<T, ElemTs...>();
+    for (const auto& it: std::get<typeIndex>(elements)) {
+        f(*this, GuiHandle<T>(it.first));
+    }
+}
+
+template<typename...ElemTs>
 template<typename...Ts>
 void GuiImpl<ElemTs...>::mouseButtonDown(const GuiHandle<Ts...>& target) {
     visit(target, [](auto& elem){elem.mouseButtonDown();});
@@ -270,19 +305,8 @@ using Gui = GuiImpl<
     Button
 >;
 
+struct GuiUpdated {
+    Gui newGui;
+};
+
 }
-
-
-namespace std {
-    template<typename...Ts>
-    struct hash<::pt::GuiHandle<Ts...>> {
-        constexpr size_t operator()(const ::pt::GuiHandle<Ts...>& handle) const noexcept {
-            if constexpr (sizeof...(Ts) == 1) {
-                return handle.index;
-            } else {
-                return handle.index ^ std::rotl(handle.typeIndex, sizeof(handle.typeIndex)*4);
-            }
-        }
-    };
-}
-
