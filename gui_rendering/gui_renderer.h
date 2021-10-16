@@ -37,6 +37,9 @@ public:
         createVertexBuffer();
         ctx.request_sync(vertexBufferTransferRequest());
 
+        createClickBuffer();
+        createClickBufferDescriptor();
+
         initSwapChain();
     }
 
@@ -90,6 +93,8 @@ public:
 private:
     void createVertexBuffer();
     TransferDataToBuffer vertexBufferTransferRequest();
+    void createClickBuffer();
+    void createClickBufferDescriptor();
 
     void initSwapChain();
     void createImageViews();
@@ -101,6 +106,8 @@ private:
     void cleanupCommandBuffers();
     void cleanupSwapChain();
     void cleanupVertexBuffer();
+    void cleanupClickBuffer();
+    void cleanupClickBufferDescriptor();
     void cleanup();
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
@@ -109,8 +116,15 @@ private:
     VkDevice device = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkCommandPool commandPool = VK_NULL_HANDLE;
+
     VkBuffer vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+
+    VkBuffer clickBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory clickBufferMemory = VK_NULL_HANDLE;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+    VkDescriptorSet clickBufferDescriptorSet = VK_NULL_HANDLE;
 
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;

@@ -104,8 +104,8 @@ void GuiRenderer::createRenderPass() {
 }
 
 void GuiRenderer::createGraphicsPipeline() {
-    auto vertShaderCode = readFile("rendering/mesh.vert.glsl.spv");
-    auto fragShaderCode = readFile("rendering/mesh.frag.glsl.spv");
+    auto vertShaderCode = readFile("gui_rendering/triangle.vert.glsl.spv");
+    auto fragShaderCode = readFile("gui_rendering/triangle.frag.glsl.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -201,17 +201,16 @@ void GuiRenderer::createGraphicsPipeline() {
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0; // Optional
-    pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
     VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     assert(result == VK_SUCCESS);
-    
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -275,6 +274,79 @@ void GuiRenderer::createVertexBuffer() {
     }
 }
 
+void GuiRenderer::createClickBuffer() {
+    const VkDeviceSize bufferSize = swapChainInfo.extent.width * swapChainInfo.extent.height * sizeof(size_t);
+
+    if (bufferSize > 0) {
+        vkutils::createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            device,
+            physicalDevice,
+            clickBuffer,
+            clickBufferMemory
+        );
+    }
+}
+
+void GuiRenderer::createClickBufferDescriptor() {
+    VkDescriptorPoolSize size{};
+    size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    size.descriptorCount = 1;
+
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = 0;
+	poolInfo.maxSets = 1;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &size;
+
+	VkResult result = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
+    assert(result == VK_SUCCESS);
+
+    VkDescriptorSetLayoutBinding clickBufferBinding{};
+	clickBufferBinding.binding = 0;
+	clickBufferBinding.descriptorCount = 1;
+	clickBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	clickBufferBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayoutCreateInfo setInfo{};
+	setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	setInfo.pNext = nullptr;
+	setInfo.bindingCount = 1;
+	setInfo.flags = 0;
+	setInfo.pBindings = &clickBufferBinding;
+
+	result = vkCreateDescriptorSetLayout(device, &setInfo, nullptr, &descriptorSetLayout);
+    assert(result == VK_SUCCESS);
+
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.pNext = nullptr;
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &descriptorSetLayout;
+
+    result = vkAllocateDescriptorSets(device, &allocInfo, &clickBufferDescriptorSet);
+    assert(result == VK_SUCCESS);
+
+    VkDescriptorBufferInfo bInfo;
+    bInfo.buffer = clickBuffer;
+    bInfo.offset = 0;
+    bInfo.range = VK_WHOLE_SIZE;
+
+    VkWriteDescriptorSet setWrite{};
+    setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    setWrite.pNext = nullptr;
+    setWrite.dstBinding = 0;
+    setWrite.dstSet = clickBufferDescriptorSet;
+    setWrite.descriptorCount = 1;
+    setWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    setWrite.pBufferInfo = &bInfo;
+
+    vkUpdateDescriptorSets(device, 1, &setWrite, 0, nullptr);
+}
 
 TransferDataToBuffer GuiRenderer::vertexBufferTransferRequest() {
     return TransferDataToBuffer{
@@ -325,6 +397,7 @@ void GuiRenderer::createCommandBuffers() {
             VkBuffer vertexBuffers[] = {vertexBuffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+            vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &clickBufferDescriptorSet, 0, nullptr);
             vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
         }
 
@@ -374,12 +447,30 @@ void GuiRenderer::cleanupVertexBuffer() {
     }
 }
 
+void GuiRenderer::cleanupClickBuffer() {
+    if (clickBuffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(device, clickBuffer, nullptr);
+        vkFreeMemory(device, clickBufferMemory, nullptr);
+    }
+}
+
+void GuiRenderer::cleanupClickBufferDescriptor() {
+    if (descriptorPool != VK_NULL_HANDLE)
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+
+    if (descriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+}
+
 void GuiRenderer::cleanup() {
     vkDeviceWaitIdle(device);
     cleanupSwapChain();
     cleanupVertexBuffer();
+    cleanupClickBuffer();
+    cleanupClickBufferDescriptor();
     vkDestroyCommandPool(device, commandPool, nullptr);
 }
+
 
 GuiRenderer::~GuiRenderer() {
     if (!move_detector.moved) 

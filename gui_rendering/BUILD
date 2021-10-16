@@ -1,3 +1,5 @@
+load("@//build_defs:glsl.bzl", "spirv")
+
 cc_library(
     name = "gui_rendering",
     hdrs = glob(["*.h"]),
@@ -5,6 +7,7 @@ cc_library(
     deps = ["//gui", "@glm//:glm", "//rendering"],
     linkopts = ["-ldl"],
     copts = ["-Werror"],
+    data = [":triangle_shaders"],
     visibility = ["//visibility:public"],
 )
 
@@ -15,3 +18,7 @@ cc_test(
     copts = ["-Werror"],
 )
 
+spirv(
+    name = "triangle_shaders",
+    srcs = ["triangle.vert.glsl", "triangle.frag.glsl"],
+)
