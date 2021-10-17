@@ -26,6 +26,12 @@ namespace {
 
         return buffer;
     }
+
+    struct PushConstant {
+        glm::uvec2 windowSize;
+    };
+
+    static_assert(sizeof(PushConstant) <= 128);
 }
 
 namespace pt {
@@ -201,12 +207,17 @@ void GuiRenderer::createGraphicsPipeline() {
     colorBlending.blendConstants[2] = 0.0f; // Optional
     colorBlending.blendConstants[3] = 0.0f; // Optional
 
+	VkPushConstantRange pushConstantInfo;
+	pushConstantInfo.offset = 0;
+	pushConstantInfo.size = sizeof(PushConstant);
+	pushConstantInfo.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstantInfo;
 
     VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     assert(result == VK_SUCCESS);
@@ -275,13 +286,13 @@ void GuiRenderer::createVertexBuffer() {
 }
 
 void GuiRenderer::createClickBuffer() {
-    const VkDeviceSize bufferSize = swapChainInfo.extent.width * swapChainInfo.extent.height * sizeof(size_t);
+    const VkDeviceSize bufferSize = swapChainInfo.extent.width * swapChainInfo.extent.height * 4;
 
     if (bufferSize > 0) {
         vkutils::createBuffer(
             bufferSize,
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             device,
             physicalDevice,
             clickBuffer,
@@ -392,12 +403,15 @@ void GuiRenderer::createCommandBuffers() {
 
         vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+        PushConstant pushConstant{{swapChainInfo.extent.width, swapChainInfo.extent.height}};
+
         if (vertexBuffer != VK_NULL_HANDLE) {
             vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
             VkBuffer vertexBuffers[] = {vertexBuffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
             vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &clickBufferDescriptorSet, 0, nullptr);
+            vkCmdPushConstants(commandBuffers[i], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstant), &pushConstant);
             vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
         }
 

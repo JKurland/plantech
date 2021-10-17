@@ -16,7 +16,6 @@
 
 namespace pt {
 
-
 class GuiRenderer {
 public:
     GuiRenderer(const GuiRenderer&) = delete;
