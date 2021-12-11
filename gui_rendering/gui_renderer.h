@@ -7,14 +7,22 @@
 #include "utils/move_detector.h"
 #include "gui/gui.h"
 #include "gui_rendering/walk_gui.h"
+#include "gui_rendering/primitives.h"
 
 #include <vector>
 #include <optional>
 #include <span>
 #include <array>
+#include <iostream>
 
 
 namespace pt {
+
+struct GetEventTargetForPixel {
+    using ResponseT = EventTarget;
+    std::uint32_t x;
+    std::uint32_t y;
+};
 
 class GuiRenderer {
 public:
@@ -84,9 +92,26 @@ public:
         VertexBufferBuilder vbBuilder(glm::uvec2(swapChainInfo.extent.width, swapChainInfo.extent.height));
         GuiVisitor visitor(vbBuilder);
         event.newGui.visitAll(visitor);
-        vertices = vbBuilder.getTriangleVertices();
+        vertexBuffers = std::move(vbBuilder).build();
         verticesChanged = true;
         co_return;
+    }
+
+    REQUEST(GetEventTargetForPixel) {
+        vkDeviceWaitIdle(device);
+        size_t* eventTargetIdxPtr = 0;
+
+        const size_t offset = (request.x * swapChainInfo.extent.height + request.y) * clickBufferStride();
+        VkResult result = vkMapMemory(device, clickBufferMemory, offset, sizeof(eventTargetIdxPtr), 0, &eventTargetIdxPtr);
+        assert(result == VK_SUCCESS);
+
+        size_t eventTargetIdx;
+        memcpy(&eventTargetIdx, eventTargetIdxPtr, sizeof(eventTargetIdx));
+
+        vkUnmapMemory(device, clickBufferMemory);
+
+        assert(eventTargetIdx < vertexBuffers.eventTargets.size());
+        co_return vertexBuffers.eventTargets[eventTargetIdx];
     }
 
 private:
@@ -94,6 +119,7 @@ private:
     TransferDataToBuffer vertexBufferTransferRequest();
     void createClickBuffer();
     void createClickBufferDescriptor();
+    static size_t clickBufferStride();
 
     void initSwapChain();
     void createImageViews();
@@ -108,6 +134,7 @@ private:
     void cleanupClickBuffer();
     void cleanupClickBufferDescriptor();
     void cleanup();
+
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
 
@@ -137,7 +164,7 @@ private:
     bool newSwapChainInProgress = false;
 
     bool verticesChanged = false;
-    std::vector<TriangleVertex> vertices;
+    VertexBuffers vertexBuffers;
 
     MoveDetector move_detector;
 };

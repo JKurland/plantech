@@ -8,6 +8,7 @@
 
 #include <future>
 #include <functional>
+#include <iostream>
 
 using namespace pt;
 
@@ -46,6 +47,7 @@ protected:
     void updateGui() {
         context.emit_sync(GuiUpdated{.newGui = gui});
     }
+
 private:
     std::promise<int> p;
     std::future<int> f;

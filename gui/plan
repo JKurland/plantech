@@ -1,0 +1,12 @@
+GuiHandler -> builds gui based on requests it receives
+GuiRenderer -> sent the gui when the gui updates, uses GuiVisitor to construct vertex buffers for the gui and then manages the rendering of those buffers
+GuiVisitor -> Uses vertexBufferBuilder to build vertex buffers. Creates click data for each vertex that can be retrieved later by pixel co-ord
+Window -> creates mouse events
+
+GuiRenderer will
+    * receive mouse events
+    * extract click data for the event location
+    * get the gui handle out of the click data
+    * GuiRenderer has stored the most recent Gui (this gui must correspond to the click data buffer in the gpu)
+    * GuiRenderer passes the type of mouse event and the handle to Gui
+    * Gui bubbles the event around as it should

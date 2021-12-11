@@ -9,8 +9,7 @@ layout(std140, set = 0, binding = 0) writeonly buffer clickBuffer {
 
 layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 
-layout( push_constant ) uniform constants
-{
+layout(push_constant) uniform constants {
 	uvec2 windowSize;
 };
 
@@ -18,5 +17,5 @@ void main() {
     outColor = vec4(fragColor, 1.0);
 
     uvec2 pixelPos = uvec2(floor(gl_FragCoord.xy));
-    idxs[pixelPos.x * windowSize.y + pixelPos.y] = uint(outColor.r);
+    idxs[pixelPos.x * windowSize.y + pixelPos.y] = uint(gl_FragCoord.x);
 }

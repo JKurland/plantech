@@ -15,8 +15,10 @@
 
 namespace pt {
 
-
-class GuiRoot: public GuiElement {};
+class GuiRoot: public GuiElement {
+public:
+    using PosDataT = void;
+};
 
 template<typename...Ts>
 class GuiImpl;
@@ -33,7 +35,6 @@ public:
 
 private:
     explicit GuiHandle(size_t index): index(index) {}
-
 
     size_t index;
     template<typename...Ts>

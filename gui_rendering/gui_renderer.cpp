@@ -32,6 +32,10 @@ namespace {
     };
 
     static_assert(sizeof(PushConstant) <= 128);
+
+    constexpr size_t round_to_next_16(size_t x) {
+        return (1 + (x-1)/16) * 16;
+    }
 }
 
 namespace pt {
@@ -270,7 +274,7 @@ void GuiRenderer::createFramebuffers() {
 }
 
 void GuiRenderer::createVertexBuffer() {
-    const VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    const VkDeviceSize bufferSize = sizeof(vertexBuffers.triangleVertexBuffer[0]) * vertexBuffers.triangleVertexBuffer.size();
 
     if (bufferSize > 0) {
         vkutils::createBuffer(
@@ -285,8 +289,15 @@ void GuiRenderer::createVertexBuffer() {
     }
 }
 
+
+// static
+size_t GuiRenderer::clickBufferStride() {
+    // in the shader the click buffer is declared with std140 layout, so the stride in the array is rounded up to the size of a vec4
+    return round_to_next_16(sizeof(size_t));
+}
+
 void GuiRenderer::createClickBuffer() {
-    const VkDeviceSize bufferSize = swapChainInfo.extent.width * swapChainInfo.extent.height * 4;
+    const VkDeviceSize bufferSize = swapChainInfo.extent.width * swapChainInfo.extent.height * clickBufferStride();
 
     if (bufferSize > 0) {
         vkutils::createBuffer(
@@ -362,8 +373,8 @@ void GuiRenderer::createClickBufferDescriptor() {
 TransferDataToBuffer GuiRenderer::vertexBufferTransferRequest() {
     return TransferDataToBuffer{
         .data = std::span(
-            reinterpret_cast<const char*>(vertices.data()),
-            vertices.size() * sizeof(vertices[0])
+            reinterpret_cast<const char*>(vertexBuffers.triangleVertexBuffer.data()),
+            vertexBuffers.triangleVertexBuffer.size() * sizeof(vertexBuffers.triangleVertexBuffer[0])
         ),
         .dst_buffer = vertexBuffer,
     };
@@ -407,12 +418,12 @@ void GuiRenderer::createCommandBuffers() {
 
         if (vertexBuffer != VK_NULL_HANDLE) {
             vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-            VkBuffer vertexBuffers[] = {vertexBuffer};
+            VkBuffer vkVertexBuffers[] = {vertexBuffer};
             VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+            vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vkVertexBuffers, offsets);
             vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &clickBufferDescriptorSet, 0, nullptr);
             vkCmdPushConstants(commandBuffers[i], pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstant), &pushConstant);
-            vkCmdDraw(commandBuffers[i], (uint32_t)vertices.size(), 1, 0, 0);
+            vkCmdDraw(commandBuffers[i], (uint32_t)vertexBuffers.triangleVertexBuffer.size(), 1, 0, 0);
         }
 
         vkCmdEndRenderPass(commandBuffers[i]);
