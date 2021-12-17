@@ -293,7 +293,7 @@ void GuiRenderer::createVertexBuffer() {
 // static
 size_t GuiRenderer::clickBufferStride() {
     // in the shader the click buffer is declared with std140 layout, so the stride in the array is rounded up to the size of a vec4
-    return round_to_next_16(sizeof(size_t));
+    return round_to_next_16(sizeof(uint32_t));
 }
 
 void GuiRenderer::createClickBuffer() {

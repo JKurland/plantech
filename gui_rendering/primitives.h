@@ -15,13 +15,13 @@ namespace pt {
 
 struct EventTarget {
     Gui::Handle handle; // which gui element
-    std::unique_ptr<void, void(*)(void*)> posData; // extra position information specific to the element type (e.g. which character in a text box)
+    std::shared_ptr<void> posData; // extra position information specific to the element type (e.g. which character in a text box)
 };
 
 struct TriangleVertex {
     glm::vec2 pos;
     glm::vec3 colour;
-    size_t eventTargetIdx;
+    uint32_t eventTargetIdx;
 
     static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
 };
@@ -48,7 +48,7 @@ public:
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle) {
         eventTargets.push_back(EventTarget{
             Gui::convertHandle(guiHandle),
-            std::unique_ptr<void, void(*)(void*)>{nullptr, nullptr}
+            nullptr
         });
         return EventTargetHandle{eventTargets.size() - 1};
     }
@@ -57,7 +57,7 @@ public:
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle, typename T::PosDataT posData) {
         eventTargets.push_back(EventTarget{
             Gui::convertHandle(guiHandle),
-            std::unique_ptr<void, void(*)(void*)>{new typename T::PosDataT(std::move(posData)), [](void* p){delete static_cast<T::PosDataT*>(p);}}
+            std::make_shared(posData)
         });
         return EventTargetHandle{eventTargets.size() - 1};
     }

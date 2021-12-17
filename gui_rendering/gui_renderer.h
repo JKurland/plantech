@@ -70,44 +70,40 @@ public:
     }
 
     EVENT(PreRender) {
-        if (verticesChanged) {
-            vkDeviceWaitIdle(device);
-            cleanupCommandBuffers();
-            cleanupVertexBuffer();
-
-            createVertexBuffer();
-            createCommandBuffers();
-            co_await ctx(vertexBufferTransferRequest());
-
-            auto req = UpdateCommandBuffers{
-                commandBufferHandle,
-                commandBuffers,
-            };
-            co_await ctx(req);
-            verticesChanged = false;
-        }
-    }
-
-    EVENT(GuiUpdated) {
         VertexBufferBuilder vbBuilder(glm::uvec2(swapChainInfo.extent.width, swapChainInfo.extent.height));
         GuiVisitor visitor(vbBuilder);
-        event.newGui.visitAll(visitor);
+
+        auto gui = co_await ctx(GetGui{});
+        gui.visitAll(visitor);
         vertexBuffers = std::move(vbBuilder).build();
-        verticesChanged = true;
-        co_return;
+
+
+        vkDeviceWaitIdle(device);
+        cleanupCommandBuffers();
+        cleanupVertexBuffer();
+
+        createVertexBuffer();
+        createCommandBuffers();
+        co_await ctx(vertexBufferTransferRequest());
+
+        auto req = UpdateCommandBuffers{
+            commandBufferHandle,
+            commandBuffers,
+        };
+        co_await ctx(req);
+        verticesChanged = false;
     }
 
     REQUEST(GetEventTargetForPixel) {
         vkDeviceWaitIdle(device);
-        size_t* eventTargetIdxPtr = 0;
+        void* eventTargetIdxPtr = 0;
 
         const size_t offset = (request.x * swapChainInfo.extent.height + request.y) * clickBufferStride();
         VkResult result = vkMapMemory(device, clickBufferMemory, offset, sizeof(eventTargetIdxPtr), 0, &eventTargetIdxPtr);
         assert(result == VK_SUCCESS);
 
-        size_t eventTargetIdx;
+        uint32_t eventTargetIdx;
         memcpy(&eventTargetIdx, eventTargetIdxPtr, sizeof(eventTargetIdx));
-
         vkUnmapMemory(device, clickBufferMemory);
 
         assert(eventTargetIdx < vertexBuffers.eventTargets.size());

@@ -12,6 +12,15 @@
 
 using namespace pt;
 
+
+struct MockGuiManager {
+    REQUEST(GetGui) {
+        co_return *gui;
+    }
+
+    Gui* gui;
+};
+
 class TestGuiRenderer: public ::testing::Test {
 protected:
     TestGuiRenderer():
@@ -21,7 +30,8 @@ protected:
             Quitter{ProgramEnd{}, std::move(p)},
             Window(800, 600, "Triangle Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
-            ctor_args<GuiRenderer>(1.0)
+            ctor_args<GuiRenderer>(1.0),
+            MockGuiManager{&gui}
         ))
     {}
 
@@ -44,10 +54,6 @@ protected:
         return gui.add(Button(), gui.root());
     }
 
-    void updateGui() {
-        context.emit_sync(GuiUpdated{.newGui = gui});
-    }
-
 private:
     std::promise<int> p;
     std::future<int> f;
@@ -59,7 +65,8 @@ private:
         Quitter,
         Window,
         VulkanRendering,
-        GuiRenderer
+        GuiRenderer,
+        MockGuiManager
     > context;
 };
 
@@ -89,7 +96,6 @@ TEST_F(TestGuiRenderer, should_open_and_close_window_and_draw_frame_with_button)
     startProgram();
 
     addButton();
-    updateGui();
 
     newFrame();
     quitProgram();
@@ -98,7 +104,6 @@ TEST_F(TestGuiRenderer, should_open_and_close_window_and_draw_frame_with_button)
 TEST_F(TestGuiRenderer, should_open_and_close_window_and_draw_some_frames) {
     startProgram();
     addButton();
-    updateGui();
     for (size_t i = 0; i < 10; i++) {
         newFrame();
     }
@@ -110,7 +115,6 @@ TEST_F(TestGuiRenderer, should_open_and_close_window_and_draw_frame_with_2_butto
 
     addButton();
     addButton();
-    updateGui();
 
     newFrame();
     quitProgram();

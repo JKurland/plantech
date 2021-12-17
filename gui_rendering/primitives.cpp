@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <memory>
+#include <limits>
 #include <glm/glm.hpp>
 
 namespace pt {
@@ -22,14 +23,7 @@ std::array<VkVertexInputAttributeDescription, 3> TriangleVertex::getAttributeDes
 
     attributeDescriptions[2].binding = 0;
     attributeDescriptions[2].location = 2;
-
-    constexpr size_t eventTargetIdxSize = sizeof(std::declval<TriangleVertex>().eventTargetIdx);
-    static_assert(eventTargetIdxSize == 4 || eventTargetIdxSize == 8);
-    if constexpr (eventTargetIdxSize == 4) {
-        attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
-    } else if constexpr (eventTargetIdxSize == 8) {
-        attributeDescriptions[2].format = VK_FORMAT_R64_UINT;
-    }
+    attributeDescriptions[2].format = VK_FORMAT_R32_UINT;
     attributeDescriptions[2].offset = offsetof(TriangleVertex, eventTargetIdx);
 
     return attributeDescriptions;
@@ -44,7 +38,8 @@ VertexBufferBuilder::VertexBufferBuilder(const glm::uvec2& screenSize):
 void VertexBufferBuilder::addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, glm::vec3 colour, EventTargetHandle eventTargetHandle) {
     const auto bottomLeft = glm::uvec2{topLeft.x, bottomRight.y};
     const auto topRight = glm::uvec2{bottomRight.x, topLeft.y};
-    const size_t eventTargetIdx = eventTargetHandle.idx;
+    assert(eventTargetHandle.idx < std::numeric_limits<uint32_t>::max());
+    const uint32_t eventTargetIdx = static_cast<uint32_t>(eventTargetHandle.idx);
 
     triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft),     .colour = colour, .eventTargetIdx = eventTargetIdx});
     triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomRight), .colour = colour, .eventTargetIdx = eventTargetIdx});

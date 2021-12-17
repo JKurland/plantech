@@ -306,8 +306,7 @@ using Gui = GuiImpl<
     Button
 >;
 
-struct GuiUpdated {
-    Gui newGui;
+struct GetGui {
+    using ResponseT = Gui;
 };
-
 }

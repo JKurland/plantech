@@ -6,6 +6,7 @@
 #include "rendering/mesh.h"
 #include "application/click_for_shape.h"
 #include "gui_rendering/gui_renderer.h"
+#include "gui_manager/gui_manager.h"
 
 #include <future>
 #include <functional>
@@ -45,7 +46,8 @@ int main() {
         Window(800, 600, "Application", pollWindow),
         ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
-        ctor_args<GuiRenderer>(1.0)
+        ctor_args<GuiRenderer>(1.0),
+        GuiManager{}
     );
 
     context.emit_sync(ProgramStart{});
