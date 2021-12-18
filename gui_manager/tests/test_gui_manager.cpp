@@ -3,16 +3,16 @@
 #include <chrono>
 #include "gui_manager/gui_manager.h"
 #include "rendering/framerate_driver.h"
+#include "test_utils/fixture.h"
 
 using namespace pt;
 
-class TestGuiManager: public ::testing::Test {
+class TestGuiManager: public ProgramControlFixture<TestGuiManager> {
 protected:
     TestGuiManager():
-        p(),
-        f(p.get_future()),
+        ProgramControlFixture(),
         context(make_context(
-            Quitter{ProgramEnd{}, std::move(p)},
+            takeQuitter(),
             Window(800, 600, "Triangle Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
             FramerateDriver{30},
@@ -20,17 +20,6 @@ protected:
             GuiManager{}
         ))
     {}
-
-    void startProgram() {
-        context.emit_sync(ProgramStart{});
-    }
-
-    void quitProgram() {
-        context.emit_sync(QuitRequested{0});
-        ASSERT_EQ(f.get(), 0);
-        context.no_more_messages();
-        context.wait_for_all_events_to_finish();
-    }
 
     GuiHandle<Button> addButton() {
         return context.request_sync(AddButton{});
@@ -40,11 +29,8 @@ protected:
         pollWindow();
     }
 
+    friend class ProgramControlFixture<TestGuiManager>;
 private:
-    std::promise<int> p;
-    std::future<int> f;
-
-    // we don't call it in these tests but Window needs it to be happy
     std::function<void()> pollWindow;
 
     Context<

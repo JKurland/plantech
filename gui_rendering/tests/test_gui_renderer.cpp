@@ -5,6 +5,7 @@
 #include "window/window.h"
 #include "gui_rendering/gui_renderer.h"
 #include "gui/gui.h"
+#include "test_utils/fixture.h"
 
 #include <future>
 #include <functional>
@@ -21,13 +22,12 @@ struct MockGuiManager {
     Gui* gui;
 };
 
-class TestGuiRenderer: public ::testing::Test {
+class TestGuiRenderer: public ProgramControlFixture<TestGuiRenderer> {
 protected:
     TestGuiRenderer():
-        p(),
-        f(p.get_future()),
+        ProgramControlFixture(),
         context(make_context(
-            Quitter{ProgramEnd{}, std::move(p)},
+            takeQuitter(),
             Window(800, 600, "Triangle Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
             ctor_args<GuiRenderer>(1.0),
@@ -35,29 +35,16 @@ protected:
         ))
     {}
 
-    void startProgram() {
-        context.emit_sync(ProgramStart{});
-    }
-
     void newFrame() {
         context.emit_sync(NewFrame{});
-    }
-
-    void quitProgram() {
-        context.emit_sync(QuitRequested{0});
-        ASSERT_EQ(f.get(), 0);
-        context.no_more_messages();
-        context.wait_for_all_events_to_finish();
     }
 
     auto addButton() {
         return gui.add(Button(), gui.root());
     }
 
+    friend class ProgramControlFixture<TestGuiRenderer>;
 private:
-    std::promise<int> p;
-    std::future<int> f;
-
     // we don't call it in these tests but Window needs it to be happy
     std::function<void()> pollWindow;
     Gui gui;
