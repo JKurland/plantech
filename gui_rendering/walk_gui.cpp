@@ -14,11 +14,16 @@ void GuiVisitor::operator()(const Gui& gui, const GuiHandle<Button>& handle) {
     vbBuilder->addRectangle(
         glm::uvec2(0, 0),
         glm::uvec2(100, 40),
+        0.1,
         colour,
         vbBuilder->addEventTarget(handle)
     );
 }
 
-void GuiVisitor::operator()(const Gui&, const GuiHandle<GuiRoot>&) {}
+void GuiVisitor::operator()(const Gui&, const GuiHandle<GuiRoot>& handle) {
+    // make the root node a black rectangle that covers the whole screen for now
+    vbBuilder->addEventTarget(handle);
+    vbBuilder->addBackground(0.9, glm::vec3{0.0, 0.0, 0.0}, vbBuilder->addEventTarget(handle));
+}
 
 }

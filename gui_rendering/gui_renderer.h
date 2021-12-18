@@ -77,7 +77,6 @@ public:
         gui.visitAll(visitor);
         vertexBuffers = std::move(vbBuilder).build();
 
-
         vkDeviceWaitIdle(device);
         cleanupCommandBuffers();
         cleanupVertexBuffer();
@@ -119,12 +118,17 @@ private:
 
     void initSwapChain();
     void createImageViews();
+    void createDepthResources();
     void createRenderPass();
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandBuffers();
 
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat findDepthFormat();
+
     void cleanupCommandBuffers();
+    void cleanupDepthResources();
     void cleanupSwapChain();
     void cleanupVertexBuffer();
     void cleanupClickBuffer();
@@ -133,6 +137,8 @@ private:
 
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
     SwapChainInfo swapChainInfo;
     VkDevice device = VK_NULL_HANDLE;
@@ -144,6 +150,11 @@ private:
 
     VkBuffer clickBuffer = VK_NULL_HANDLE;
     VkDeviceMemory clickBufferMemory = VK_NULL_HANDLE;
+
+    VkImage depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+    VkImageView depthImageView = VK_NULL_HANDLE;
+
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
     VkDescriptorSet clickBufferDescriptorSet = VK_NULL_HANDLE;

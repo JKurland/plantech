@@ -19,7 +19,7 @@ struct EventTarget {
 };
 
 struct TriangleVertex {
-    glm::vec2 pos;
+    glm::vec3 pos;
     glm::vec3 colour;
     uint32_t eventTargetIdx;
 
@@ -42,7 +42,8 @@ class VertexBufferBuilder {
 public:
     VertexBufferBuilder(const glm::uvec2& screeSize);
 
-    void addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, glm::vec3 colour, EventTargetHandle eventTargetHandle);
+    void addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle);
+    void addBackground(float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle);
 
     template<typename T, typename = std::enable_if_t<std::is_void_v<typename T::PosDataT>>>
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle) {
@@ -64,13 +65,14 @@ public:
 
     VertexBuffers build() &&;
 private:
-    glm::vec2 toScreenSpace(const glm::uvec2& x) const;
+    glm::vec3 toScreenSpace(const glm::vec3& x) const;
 
     std::vector<TriangleVertex> triangleVertexBuffer;
     std::vector<EventTarget> eventTargets;
 
-    glm::mat2 transform;
-    glm::vec2 translate;
+    glm::mat3 transform;
+    glm::vec3 translate;
+    glm::uvec2 screenSize;
 };
 
 }

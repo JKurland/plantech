@@ -3,6 +3,7 @@
 #include <utility>
 #include <memory>
 #include <limits>
+#include <iostream>
 #include <glm/glm.hpp>
 
 namespace pt {
@@ -13,7 +14,7 @@ std::array<VkVertexInputAttributeDescription, 3> TriangleVertex::getAttributeDes
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(TriangleVertex, pos);
 
     attributeDescriptions[1].binding = 0;
@@ -30,27 +31,39 @@ std::array<VkVertexInputAttributeDescription, 3> TriangleVertex::getAttributeDes
 }
 
 VertexBufferBuilder::VertexBufferBuilder(const glm::uvec2& screenSize):
-    transform(2.0/(float)screenSize.x, 0, 0, 2.0/(float)screenSize.y),
-    translate(-1, -1)
+    transform(
+        2.0/(float)screenSize.x, 0,                       0,
+        0,                       2.0/(float)screenSize.y, 0,
+        0,                       0,                       1.0
+    ),
+    translate(-1, -1, 0),
+    screenSize(screenSize)
 {
 }
 
-void VertexBufferBuilder::addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, glm::vec3 colour, EventTargetHandle eventTargetHandle) {
-    const auto bottomLeft = glm::uvec2{topLeft.x, bottomRight.y};
-    const auto topRight = glm::uvec2{bottomRight.x, topLeft.y};
+void VertexBufferBuilder::addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle) {
+    const auto topLeft3 = glm::vec3{topLeft.x, topLeft.y, depth};
+    const auto bottomRight3 = glm::vec3{bottomRight.x, bottomRight.y, depth};
+    const auto bottomLeft3 = glm::vec3{topLeft.x, bottomRight.y, depth};
+    const auto topRight3 = glm::vec3{bottomRight.x, topLeft.y, depth};
+
     assert(eventTargetHandle.idx < std::numeric_limits<uint32_t>::max());
     const uint32_t eventTargetIdx = static_cast<uint32_t>(eventTargetHandle.idx);
 
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft),     .colour = colour, .eventTargetIdx = eventTargetIdx});
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomRight), .colour = colour, .eventTargetIdx = eventTargetIdx});
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomLeft),  .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft3),     .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomRight3), .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomLeft3),  .colour = colour, .eventTargetIdx = eventTargetIdx});
 
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topRight),    .colour = colour, .eventTargetIdx = eventTargetIdx});
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomRight), .colour = colour, .eventTargetIdx = eventTargetIdx});
-    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft),     .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topRight3),    .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(bottomRight3), .colour = colour, .eventTargetIdx = eventTargetIdx});
+    triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft3),     .colour = colour, .eventTargetIdx = eventTargetIdx});
 }
 
-glm::vec2 VertexBufferBuilder::toScreenSpace(const glm::uvec2& x) const {
+void VertexBufferBuilder::addBackground(float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle) {
+    addRectangle(glm::uvec2{0, 0}, screenSize, depth, colour, eventTargetHandle);
+}
+
+glm::vec3 VertexBufferBuilder::toScreenSpace(const glm::vec3& x) const {
     return transform * x + translate;
 }
 

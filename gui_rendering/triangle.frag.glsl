@@ -15,6 +15,8 @@ layout(push_constant) uniform constants {
 	uvec2 windowSize;
 };
 
+layout(early_fragment_tests) in;
+
 void main() {
     outColor = vec4(fragColor, 1.0);
 
