@@ -7,6 +7,8 @@
 
 using namespace pt;
 
+constexpr double outsideButton = 200;
+
 class TestGuiManager: public ProgramControlFixture<TestGuiManager> {
 protected:
     TestGuiManager():
@@ -87,6 +89,19 @@ TEST_F(TestGuiManager, button_detects_a_click) {
     quitProgram();
 }
 
+TEST_F(TestGuiManager, button_detects_a_click_and_far_away_unclick) {
+    startProgram();
+
+    auto button = addButton();
+    newFrame();
+
+    buttonDown(1, 1);
+    assertClicked(button);
+    buttonUp(outsideButton, outsideButton);
+    assertUnclicked(button);
+
+    quitProgram();
+}
 
 TEST_F(TestGuiManager, button_rejects_a_non_click) {
     startProgram();
@@ -94,7 +109,7 @@ TEST_F(TestGuiManager, button_rejects_a_non_click) {
     auto button = addButton();
     newFrame();
 
-    buttonDown(200, 200);
+    buttonDown(outsideButton, outsideButton);
     assertUnclicked(button);
 
     quitProgram();
