@@ -34,12 +34,12 @@ public:
     ~GuiRenderer();
 
     template<IsContext C>
-    GuiRenderer(C& ctx, double renderOrder): 
+    GuiRenderer(C& ctx): 
         swapChainInfo(ctx.request_sync(GetSwapChainInfo{})),
         device(ctx.request_sync(GetVulkanDevice{})),
         physicalDevice(ctx.request_sync(GetVulkanPhysicalDevice{})),
         commandPool(ctx.request_sync(NewCommandPool{})),
-        commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{renderOrder}))
+        commandBufferHandle(ctx.request_sync(NewCommandBufferHandle{}))
     {
         createVertexBuffer();
         ctx.request_sync(vertexBufferTransferRequest());

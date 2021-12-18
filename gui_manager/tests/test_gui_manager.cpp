@@ -17,7 +17,7 @@ protected:
             takeQuitter(),
             Window(800, 600, "Triangle Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
-            ctor_args<GuiRenderer>(1.0),
+            ctor_args<GuiRenderer>(),
             GuiManager{}
         ))
     {}

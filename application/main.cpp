@@ -46,7 +46,7 @@ int main() {
         Window(800, 600, "Application", pollWindow),
         ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
         FramerateDriver(/*fps*/ 60),
-        ctor_args<GuiRenderer>(1.0),
+        ctor_args<GuiRenderer>(),
         GuiManager{}
     );
 

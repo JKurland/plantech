@@ -45,14 +45,11 @@ public:
 private:
     CommandBufferHandle() = default;
     friend class VulkanRendering;
-    double render_order;
     size_t idx;
 };
 
 struct NewCommandBufferHandle {
     using ResponseT = CommandBufferHandle;
-
-    double render_order;
 };
 
 struct NewCommandPool {
@@ -151,7 +148,6 @@ public:
     REQUEST(NewCommandBufferHandle) {
         CommandBufferHandle handle;
         handle.idx = nextHandleIdx;
-        handle.render_order = request.render_order;
         nextHandleIdx++;
         co_return handle;
     }
