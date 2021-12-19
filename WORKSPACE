@@ -39,3 +39,16 @@ http_archive(
   urls = ["https://github.com/google/benchmark/archive/refs/tags/v1.5.5.tar.gz"],
   strip_prefix = "benchmark-1.5.5",
 )
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+http_archive(
+    name = "hedron_compile_commands",
+
+    # Replace the commit hash in both places (below) with the latest. 
+    # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" below).
+    url = "https://github.com/hedronvision/bazel-compile-commands-extractor/archive/486d6eaf87255b7e15640bb9add58f0a77c1e2b6.tar.gz",
+    strip_prefix = "bazel-compile-commands-extractor-486d6eaf87255b7e15640bb9add58f0a77c1e2b6",
+)
+load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
+hedron_compile_commands_setup()
