@@ -26,4 +26,6 @@ void GuiVisitor::operator()(const Gui&, const GuiHandle<GuiRoot>& handle) {
     vbBuilder->addBackground(0.9, glm::vec3{0.0, 0.0, 0.0}, vbBuilder->addEventTarget(handle));
 }
 
+void GuiVisitor::operator()(const Gui& gui, const GuiHandle<Translate>& handle) {}
+
 }

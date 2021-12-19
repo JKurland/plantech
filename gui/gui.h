@@ -12,6 +12,7 @@
 #include "utils/template_meta.h"
 #include "gui/element.h"
 #include "gui/button.h"
+#include "gui/translate.h"
 
 namespace pt {
 
@@ -114,6 +115,22 @@ public:
 
     template<typename T, typename F>
     void visitAllType(F&& f) const;
+
+    // visits each element in the gui in topological order.
+    // F should be callable with the following arguments 
+    // (const Gui&, const GuiHandle<ELEMENT_TYPE>&, const ContextT&). The idea
+    // with the context is that the context seen by a node in the tree depends
+    // on all the nodes above it. For example a node's parent can modify the
+    // context that node sees. To modify the context F can return a ContextT
+    // (it can also return void and not modify the context). The actual order
+    // the nodes are visited in is not defined but the context argument for each
+    // node will be the context returned when its parent was visited (or its
+    // parent's parent if F returned void for the parent, and so on)
+    template<typename F, typename ContextT>
+    void visitAllWithContext(F&& f, ContextT initContext) const;
+
+    template<typename F, typename ContextT>
+    ContextT visitWithContext(F&& f, const GuiHandle<ElemTs...>& handle, const ContextT& context) const;
 
     template<typename...Ts>
     static GuiHandle<ElemTs...> convertHandle(const GuiHandle<Ts...>& handle);
@@ -286,6 +303,56 @@ void GuiImpl<ElemTs...>::visitAllType(F&& f) const {
 }
 
 template<typename...ElemTs>
+template<typename F, typename ContextT>
+ContextT GuiImpl<ElemTs...>::visitWithContext(F&& f, const GuiHandle<ElemTs...>& handle, const ContextT& context) const {
+    constexpr ContextT (*fTable[])(const GuiImpl&, const GuiHandle<ElemTs...>&, const ContextT&, F&&) = {
+        [](const GuiImpl& gui, const GuiHandle<ElemTs...>& handle, const ContextT& context, F&& f) {
+            using ResultT = std::invoke_result_t<F, GuiImpl, GuiHandle<ElemTs>, ContextT>;
+            if constexpr (std::is_void_v<ResultT>) {
+                std::invoke(std::forward<F>(f), gui, GuiHandle<ElemTs>(handle.index), context);
+                return context;
+            } else {
+                return std::invoke(std::forward<F>(f), gui, GuiHandle<ElemTs>(handle.index), context);
+            }
+        }
+        ...
+    };
+    return fTable[handle.typeIndex](*this, handle, context, std::forward<F>(f));
+}
+
+template<typename...ElemTs>
+template<typename F, typename ContextT>
+void GuiImpl<ElemTs...>::visitAllWithContext(F&& f, ContextT initContext) const {
+    std::vector<Handle> toVisit;
+    toVisit.push_back(convertHandle(root()));
+
+    // the size_t is the remaining nodes this context needs to be passed to in total.
+    // initContext only needs to be passed to the root node, so it starts at 1.
+    std::vector<std::pair<ContextT, size_t>> contexts;
+    contexts.push_back(std::make_pair(initContext, 1));
+
+    while (!toVisit.empty()) {
+        Handle& thisHandle = toVisit.back();
+        auto& thisContext = contexts.back();
+
+        ContextT newContext = visitWithContext(f, thisHandle, thisContext.first);
+        thisContext.second--;
+
+        const Node& node = getNode(thisHandle);
+
+        toVisit.pop_back();
+        if (node.children.empty()) {
+            while (!contexts.empty() && contexts.back().second == 0) {
+                contexts.pop_back();
+            }
+        } else {
+            toVisit.insert(toVisit.end(), node.children.begin(), node.children.end());
+            contexts.push_back(std::make_pair(newContext, node.children.size()));
+        }
+    }
+}
+
+template<typename...ElemTs>
 template<typename...Ts>
 void GuiImpl<ElemTs...>::mouseButtonDown(const GuiHandle<Ts...>& target) {
     visit(target, [](auto& elem){elem.mouseButtonDown();});
@@ -303,7 +370,8 @@ void GuiImpl<ElemTs...>::mouseButtonUp(const GuiHandle<Ts...>& target) {
 
 using Gui = GuiImpl<
     GuiRoot,
-    Button
+    Button,
+    Translate
 >;
 
 struct GetGui {

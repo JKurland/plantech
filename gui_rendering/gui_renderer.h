@@ -74,7 +74,7 @@ public:
         GuiVisitor visitor(vbBuilder);
 
         auto gui = co_await ctx(GetGui{});
-        gui.visitAll(visitor);
+        visitor.visit(gui);
         vertexBuffers = std::move(vbBuilder).build();
 
         vkDeviceWaitIdle(device);

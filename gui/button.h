@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "gui/element.h"
 
 namespace pt {
