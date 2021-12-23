@@ -37,7 +37,7 @@ protected:
         return button;
     }
 
-        void assertClicked(GuiHandle<Button> handle) {
+    void assertClicked(GuiHandle<Button> handle) {
         ASSERT_TRUE(context.request_sync(GetGui{}).get(handle).clicked);
     }
 
