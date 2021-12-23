@@ -5,10 +5,21 @@
 #include "window/window.h"
 #include "gui/button.h"
 
+#include <optional>
+
 namespace pt {
 
 struct AddButton {
     using ResponseT = GuiHandle<Button>;
+};
+
+template<typename T>
+struct AddGuiElement {
+    using ResponseT = GuiHandle<T>;
+
+    // if nullopt parent is gui.root()
+    std::optional<Gui::Handle> parent;
+    T element;
 };
 
 
@@ -26,6 +37,11 @@ public:
 
     REQUEST(AddButton) {
         auto handle = gui.add(Button(), gui.root());
+        co_return handle;
+    }
+
+    TEMPLATE_REQUEST(AddGuiElement<T>, typename T) {
+        auto handle = gui.add(request.element, request.parent.value_or(Gui::convertHandle(gui.root())));
         co_return handle;
     }
 

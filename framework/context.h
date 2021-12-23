@@ -413,4 +413,8 @@ Task<> handle(C& ctx, const event_type& event)
 template<IsContext C> \
 Task<request_type::ResponseT> handle(C& ctx, const request_type& request)
 
+#define TEMPLATE_REQUEST(request_type, ...) \
+template<IsContext C, __VA_ARGS__> \
+Task<typename request_type::ResponseT> handle(C& ctx, const request_type& request)
+
 }
