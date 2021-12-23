@@ -45,22 +45,10 @@ protected:
         ASSERT_FALSE(context.request_sync(GetGui{}).get(handle).clicked);
     }
 
-    void buttonDown(double x, double y) {
+    void mouseDown(double x, double y) {
         context.emit_sync(MouseButton{
             GLFW_MOUSE_BUTTON_LEFT,
             GLFW_PRESS,
-            0,
-            x,
-            y,
-            x/800.0,
-            y/600.0
-        });
-    }
-
-    void buttonUp(double x, double y) {
-        context.emit_sync(MouseButton{
-            GLFW_MOUSE_BUTTON_LEFT,
-            GLFW_RELEASE,
             0,
             x,
             y,
@@ -93,7 +81,7 @@ TEST_F(TestTranslate, test_button_click_on_translated_button) {
 
     auto button = addButton(300, 300);
     assertUnclicked(button);
-    buttonDown(310, 310);
+    mouseDown(310, 310);
     assertClicked(button);
 
     quitProgram();
@@ -104,7 +92,7 @@ TEST_F(TestTranslate, test_button_click_not_on_translated_button) {
 
     auto button = addButton(300, 300);
     assertUnclicked(button);
-    buttonDown(100, 100);
+    mouseDown(100, 100);
     assertUnclicked(button);
 
     quitProgram();
