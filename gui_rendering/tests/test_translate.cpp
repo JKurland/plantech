@@ -87,12 +87,12 @@ TEST_F(TestTranslate, test_button_click_on_translated_button) {
     quitProgram();
 }
 
-TEST_F(TestTranslate, test_button_click_not_on_translated_button) {
+TEST_F(TestTranslate, test_button_click_away_from_translated_button) {
     startProgram();
 
     auto button = addButton(300, 300);
     assertUnclicked(button);
-    mouseDown(100, 100);
+    mouseDown(0, 0); // would click the button if the translation did nothing
     assertUnclicked(button);
 
     quitProgram();
