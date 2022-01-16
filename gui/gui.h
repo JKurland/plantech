@@ -33,6 +33,7 @@ class GuiHandle;
 template<typename T>
 class GuiHandle<T> {
 public:
+    using ElemT = T;
     auto operator<=>(const GuiHandle<T>&) const = default;
 
 private:
@@ -99,6 +100,7 @@ public:
     template<typename...Ts>
     void mouseButtonUp(const GuiHandle<Ts...>& target);
 
+    // for visit f takes just the element itself
     template<typename T, typename F>
     auto visit(const GuiHandle<T>& handle, F&& f) const;
 
@@ -110,6 +112,10 @@ public:
 
     template<typename F>
     auto visit(const GuiHandle<ElemTs...>& handle, F&& f);
+
+    // for visitHandle f takes a GuiHandle<T>
+    template<typename F>
+    auto visitHandle(const GuiHandle<ElemTs...>& handle, F&& f) const;
 
     template<typename F>
     void visitAll(F&& f) const;
@@ -287,6 +293,16 @@ auto GuiImpl<ElemTs...>::visit(const GuiHandle<ElemTs...>& handle, F&& f) {
     return fTable[handle.typeIndex](*this, handle, std::forward<F>(f));
 }
 
+template<typename...ElemTs>
+template<typename F>
+auto GuiImpl<ElemTs...>::visitHandle(const GuiHandle<ElemTs...>& handle, F&& f) const {
+    using RetT = std::invoke_result_t<F&&, const GuiHandle<PpFirstType<ElemTs...>>&>;
+    constexpr RetT (*fTable[])(const GuiHandle<ElemTs...>& handle, F&& f) = {
+        [](const GuiHandle<ElemTs...>& handle, F&& f) {return std::invoke(std::forward<F>(f), GuiHandle<ElemTs>(handle.index));}
+        ...
+    };
+    return fTable[handle.typeIndex](handle, std::forward<F>(f));
+}
 
 template<typename...ElemTs>
 template<typename F>

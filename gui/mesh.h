@@ -14,6 +14,7 @@ struct GuiMesh: GuiElement {
 };
 
 struct MeshSet: GuiElement {
+    using PosDataT = void;
     MeshSet(const glm::mat4& view): view(view) {}
     glm::mat4 view;
 };

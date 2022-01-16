@@ -408,6 +408,9 @@ auto make_context(ArgTs&&...args) {
 template<IsContext C> \
 Task<> handle(C& ctx, const event_type& event)
 
+#define TEMPLATE_EVENT(event_type, ...) \
+template<IsContext C, __VA_ARGS__> \
+Task<> handle(C& ctx, const event_type& event)
 
 #define REQUEST(request_type) \
 template<IsContext C> \
