@@ -8,6 +8,15 @@
 
 using namespace pt;
 
+struct ButtonClickedObserver {
+    EVENT(GuiElementMouseButton<Button>) {
+        *buttonClicked = true;
+        co_return;
+    }
+
+    bool* buttonClicked;
+};
+
 class TestTranslate: public ProgramControlFixture<TestTranslate> {
 protected:
     TestTranslate():
@@ -17,9 +26,18 @@ protected:
             Window(800, 600, "Translate Test", pollWindow),
             ctor_args<VulkanRendering>(/*max frames in flight*/ 2),
             ctor_args<GuiRenderer>(),
-            GuiManager{}
+            GuiManager{},
+            ButtonClickedObserver{&buttonClicked}
         ))
     {}
+
+    void assertButtonClicked() {
+        ASSERT_TRUE(buttonClicked);
+    }
+
+    void assertButtoUnclicked() {
+        ASSERT_FALSE(buttonClicked);
+    }
 
     GuiHandle<Button> addButton(int x, int y) {
         GuiHandle<Translate> translateHandle = context.request_sync(AddGuiElement<Translate>{
@@ -35,14 +53,6 @@ protected:
         newFrame();
 
         return button;
-    }
-
-    void assertClicked(GuiHandle<Button> handle) {
-        ASSERT_TRUE(context.request_sync(GetGui{}).get(handle).clicked);
-    }
-
-    void assertUnclicked(GuiHandle<Button> handle) {
-        ASSERT_FALSE(context.request_sync(GetGui{}).get(handle).clicked);
     }
 
     void mouseDown(double x, double y) {
@@ -65,13 +75,15 @@ protected:
 
 private:
     std::function<void()> pollWindow;
+    bool buttonClicked = false;
 
     Context<
         Quitter,
         Window,
         VulkanRendering,
         GuiRenderer,
-        GuiManager
+        GuiManager,
+        ButtonClickedObserver
     > context;
 };
 
@@ -79,10 +91,10 @@ private:
 TEST_F(TestTranslate, test_button_click_on_translated_button) {
     startProgram();
 
-    auto button = addButton(300, 300);
-    assertUnclicked(button);
+    addButton(300, 300);
+    assertButtoUnclicked();
     mouseDown(310, 310);
-    assertClicked(button);
+    assertButtonClicked();
 
     quitProgram();
 }
@@ -90,10 +102,10 @@ TEST_F(TestTranslate, test_button_click_on_translated_button) {
 TEST_F(TestTranslate, test_button_click_away_from_translated_button) {
     startProgram();
 
-    auto button = addButton(300, 300);
-    assertUnclicked(button);
+    addButton(300, 300);
+    assertButtoUnclicked();
     mouseDown(0, 0); // would click the button if the translation did nothing
-    assertUnclicked(button);
+    assertButtoUnclicked();
 
     quitProgram();
 }
