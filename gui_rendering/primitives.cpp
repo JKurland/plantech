@@ -59,6 +59,24 @@ void VertexBufferBuilder::addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRigh
     triangleVertexBuffer.push_back(TriangleVertex{.pos = toScreenSpace(topLeft3),     .colour = colour, .eventTargetIdx = eventTargetIdx});
 }
 
+void VertexBufferBuilder::addTriangles(const std::vector<glm::vec3>& points, glm::vec3 colour, const glm::mat4& transform, EventTargetHandle eventTargetHandle) {
+    assert(points.size() % 3 == 0);
+    assert(eventTargetHandle.idx < std::numeric_limits<uint32_t>::max());
+    const uint32_t eventTargetIdx = static_cast<uint32_t>(eventTargetHandle.idx);
+
+    for (const auto& point: points) {
+        glm::vec4 withW{point, 1};
+        glm::vec4 transformed = transform * withW;
+        glm::vec3 pixelSpace{transformed.x, transformed.y, transformed.z};
+
+        triangleVertexBuffer.push_back(TriangleVertex{
+            .pos = toScreenSpace(pixelSpace),
+            .colour = colour,
+            .eventTargetIdx = eventTargetIdx
+        });
+    }
+}
+
 void VertexBufferBuilder::addBackground(float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle) {
     addRectangle(glm::uvec2{0, 0}, screenSize, depth, colour, eventTargetHandle);
 }

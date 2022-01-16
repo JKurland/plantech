@@ -32,4 +32,16 @@ GuiVisitor::WalkContext GuiVisitor::operator()(const Gui& gui, const GuiHandle<T
     return c;
 }
 
+
+GuiVisitor::WalkContext GuiVisitor::operator()(const Gui& gui, const GuiHandle<MeshSet>& handle, WalkContext c) {
+    c.view = gui.get(handle).view;
+    return c;
+}
+
+
+void GuiVisitor::operator()(const Gui& gui, const GuiHandle<GuiMesh>& handle, const WalkContext& c) {
+    auto target = vbBuilder->addEventTarget(handle);
+    vbBuilder->addTriangles(gui.get(handle).points, glm::vec3(0.2, 0.2, 0.2), c.view.value_or(glm::mat4(1)), target);
+}
+
 }

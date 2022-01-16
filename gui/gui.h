@@ -13,6 +13,7 @@
 #include "gui/element.h"
 #include "gui/button.h"
 #include "gui/translate.h"
+#include "gui/mesh.h"
 
 namespace pt {
 
@@ -371,7 +372,9 @@ void GuiImpl<ElemTs...>::mouseButtonUp(const GuiHandle<Ts...>& target) {
 using Gui = GuiImpl<
     GuiRoot,
     Button,
-    Translate
+    Translate,
+    MeshSet,
+    GuiMesh
 >;
 
 struct GetGui {

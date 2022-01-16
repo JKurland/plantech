@@ -45,6 +45,11 @@ public:
     void addRectangle(glm::uvec2 topLeft, glm::uvec2 bottomRight, float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle);
     void addBackground(float depth, glm::vec3 colour, EventTargetHandle eventTargetHandle);
 
+    // applies transform to each point in points and then interprets the points
+    // as a triangle list (i.e. points.size()%3 == 0). Transform should transform
+    // the points into pixel space.
+    void addTriangles(const std::vector<glm::vec3>& points, glm::vec3 colour, const glm::mat4& transform, EventTargetHandle eventTargetHandle);
+
     template<typename T, typename = std::enable_if_t<std::is_void_v<typename T::PosDataT>>>
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle) {
         eventTargets.push_back(EventTarget{
