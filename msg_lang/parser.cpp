@@ -52,15 +52,13 @@ SourceFile loadFile(const std::filesystem::path& path) {
         source.resize(bytesRead);
     }
 
-    if (!f.eof()) {
-        constexpr size_t chunkSize = 4096;
-        while (!f.eof()) {
-            source.resize(source.size() + chunkSize);
-            f.read(source.data() + source.size() - chunkSize, chunkSize);
-            const size_t bytesRead = f.gcount();
-            if (bytesRead != chunkSize) {
-                source.resize(source.size() - chunkSize + bytesRead);
-            }
+    constexpr size_t chunkSize = 4096;
+    while (!f.eof()) {
+        source.resize(source.size() + chunkSize);
+        f.read(source.data() + source.size() - chunkSize, chunkSize);
+        const size_t bytesRead = f.gcount();
+        if (bytesRead != chunkSize) {
+            source.resize(source.size() - chunkSize + bytesRead);
         }
     }
 
@@ -82,8 +80,9 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
     while(!remaining.empty()) {
         bool thisTokenWasUnrecognised = false;
 
-        while (isWhiteSpace(remaining.front())) {
+        if (isWhiteSpace(remaining.front())) {
             remaining.remove_prefix(1);
+            continue;  
         }
 
         // String Literal
@@ -144,7 +143,7 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
 
         else {
             if (!previousTokenWasUnrecognised) {
-                errors.push_back(Error{"Unrecognised Token", getLocation(sourceFile, curPos())});
+                errors.push_back(Error{"Unrecognised Token" , getLocation(sourceFile, curPos())});
             }
             thisTokenWasUnrecognised = true;
 

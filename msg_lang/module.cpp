@@ -65,11 +65,10 @@ private:
                     const auto& item = node.template get<AstNodeV::Item>();
                     ItemName name{std::string{item.name.s}};
 
-                    auto it = messageItems.find(name);
-                    assert(it == messageItems.end());
-
                     auto handle = mod.addMessage(Message{name, {}, std::nullopt});
-                    messageItems.emplace(name, ItemFromFile{node, &file, handle});
+                    bool inserted = messageItems.emplace(name, ItemFromFile{node, &file, handle}).second;
+                    assert(inserted);
+                    (void)inserted;
                 }
             }
         }
