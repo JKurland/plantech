@@ -1,8 +1,14 @@
 #pragma once
 #include "module.h"
+#include <string>
 
 namespace pt::msg_lang {
 
-std::string genCpp(const module::Module& module);
+struct CppSource {
+    std::string header;
+    std::string source;
+};
+
+CppSource genCpp(const module::Module& module);
 
 }

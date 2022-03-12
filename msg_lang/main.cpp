@@ -6,54 +6,91 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <variant>
 
 using namespace pt::msg_lang;
 
-int main(int argc, char** argv) {
-    std::vector<std::string_view> args;
-    for (int i = 1; i < argc; i++) {
-        args.push_back(argv[i]);
-    }
-
-
+struct Arguments {
     std::vector<std::filesystem::path> inputs;
-    std::filesystem::path outputPath;
+    std::filesystem::path headerOut;
+    std::filesystem::path sourceOut;
+};
 
-    bool nextArgIsOutputPath = false;
-    for (const auto& arg: args) {
-        if (arg.starts_with("-o")) {
-            if (arg.size() == 2) {
-                nextArgIsOutputPath = true;
-            } else {
-                std::string_view outputPathStr = arg;
-                outputPathStr.remove_prefix(2);
-                outputPath = outputPathStr;
+constexpr std::string_view kUsage = R"##(
+Usage: msg_lang_c -h HEADER_OUTPUT -s SOURCE_OUTPUT INPUT_FILES...
+)##";
+
+// if string then string contains the error
+std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
+    enum class NextArg {
+        input,
+        headerOut,
+        sourceOut,
+    };
+
+    Arguments rtn;
+    NextArg nextArg = NextArg::input;
+    for (int i = 1; i < argc; i++) {
+        std::string_view arg(argv[i]);
+
+        switch (nextArg) {
+            case NextArg::input: {
+                if (arg == "-h") {
+                    nextArg = NextArg::headerOut;
+                } else if (arg == "-s") {
+                    nextArg = NextArg::sourceOut;
+                } else {
+                    rtn.inputs.push_back(arg);
+                }
+                break;
             }
-        } else {
-            if (nextArgIsOutputPath) {
-                nextArgIsOutputPath = false;
-                outputPath = arg;
-            } else {
-                inputs.push_back(arg);
+            case NextArg::headerOut: {
+                rtn.headerOut = arg;
+                nextArg = NextArg::input;
+                break;
+            }
+            case NextArg::sourceOut: {
+                rtn.sourceOut = arg;
+                nextArg = NextArg::input;
+                break;
             }
         }
     }
 
-    if (outputPath == std::filesystem::path()) {
-        std::cout << "Specify an output path with -o" << std::endl;
-        return -1;
+    if (rtn.headerOut == std::filesystem::path()) {
+        return "No header output path specified, use -h";
+    } else if (rtn.sourceOut == std::filesystem::path()) {
+        return "No source output path specified, use -s";
+    } else if (rtn.inputs.empty()) {
+        return "No inputs specified";
+    } else {
+        return rtn;
+    }
+}
+
+int main(int argc, char** argv) {
+    const auto args_result = parseArgs(argc, argv);
+    if (std::holds_alternative<std::string>(args_result)) {
+        std::cout << std::get<std::string>(args_result) << std::endl;
+        std::cout << kUsage << std::endl;
+        return 1;
     }
 
-    if (inputs.empty()) {
-        std::cout << "Specify input file(s)" << std::endl;
-        return -1;
-    }
+    const Arguments& args = std::get<Arguments>(args_result);
+    const auto& inputs = args.inputs;
+    const auto& headerOut = args.headerOut;
+    const auto& sourceOut = args.sourceOut;
 
-
+    bool allInputsExist = true;
     for (const auto& path: inputs) {
         if (!std::filesystem::exists(path)) {
             std::cout << "Path " << path << " does not exist" << std::endl;
+            allInputsExist = false;
         }
+    }
+
+    if (!allInputsExist) {
+        return 1;
     }
 
     std::vector<AstFile> asts;
@@ -78,17 +115,32 @@ int main(int argc, char** argv) {
 
     module::Module mod = module::compile(asts);
 
-    std::string output = genCpp(mod);
+    CppSource output = genCpp(mod);
 
-    std::ofstream outFile(outputPath);
-    if (outFile) {
-        outFile.write(output.data(), output.size());
+    {
+        std::ofstream f(headerOut);
+        if (f) {
+            f.write(output.header.data(), output.header.size());
+        }
+
+        if (!f.good()) {
+            std::cout << "Failed to write to header file" << std::endl;
+            return 2;
+        }
     }
 
-    if (!outFile.good()) {
-        std::cout << "Failed to write to output file" << std::endl;
-        return 2;
+    {
+        std::ofstream f(sourceOut);
+        if (f) {
+            f.write(output.source.data(), output.source.size());
+        }
+
+        if (!f.good()) {
+            std::cout << "Failed to write to source file" << std::endl;
+            return 2;
+        }   
     }
+
 
     std::cout << "Compilation Successful" << std::endl;
 }

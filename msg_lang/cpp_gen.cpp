@@ -6,8 +6,8 @@
 namespace pt::msg_lang {
 
 
-std::string genCpp(const module::Module& module) {
-    std::string source;
+CppSource genCpp(const module::Module& module) {
+    std::string header;
 
     auto dumpDataType = [&](const module::DataType& dataType) -> std::string{
         if (dataType.template is<module::BuiltinType>()) {
@@ -28,33 +28,36 @@ std::string genCpp(const module::Module& module) {
         return module.getMessage(dataType.template get<module::MessageHandle>()).name.name;
     };
 
-    source.append("#include <string>\n");
-    source.append("#include <cstdint>\n");
+    header.append("#include <string>\n");
+    header.append("#include <cstdint>\n");
 
     // for now just forward declare everything then define everything
     for (const auto& message: module.messages()) {
-        source.append("struct ");
-        source.append(message.name.name);
-        source.push_back(';');
-        source.push_back('\n');
+        header.append("struct ");
+        header.append(message.name.name);
+        header.push_back(';');
+        header.push_back('\n');
     }
 
     // now define everything
     for (const auto& message: module.messages()) {
-        source.append("struct ");
-        source.append(message.name.name);
-        source.append(" {\n");
+        header.append("struct ");
+        header.append(message.name.name);
+        header.append(" {\n");
         for (const auto& member: message.members) {
-            source.append("    ");
-            source.append(dumpDataType(member.type));
-            source.push_back(' ');
-            source.append(member.name);
-            source.append(";\n");
+            header.append("    ");
+            header.append(dumpDataType(member.type));
+            header.push_back(' ');
+            header.append(member.name);
+            header.append(";\n");
         }
-        source.append("};\n");
+        header.append("};\n");
     }
 
-    return source;
+    return CppSource{
+        .header = header,
+        .source = ""
+    };
 }
 
 }
