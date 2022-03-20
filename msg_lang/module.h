@@ -14,7 +14,7 @@ class AstFile;
 
 struct ItemName {
     std::string name;
-    std::weak_ordering operator<=>(const ItemName&) const = default;
+    auto operator<=>(const ItemName&) const = default;
 };
 
 namespace module {
@@ -28,7 +28,7 @@ enum class BuiltinType {
 
 class MessageHandle {
 public:
-    std::weak_ordering operator<=>(const MessageHandle&) const = default;
+    auto operator<=>(const MessageHandle&) const = default;
 
 private:
     MessageHandle(size_t idx): idx(idx) {}
@@ -60,6 +60,10 @@ public:
 
     bool hasMessage(const ItemName& name) const;
     std::optional<const Message*> messageByName(const ItemName& name) const;
+
+    // the namespace the messages in this module should be generated in
+    std::optional<std::string> withNamespace;
+    std::vector<Error> errors;
 private:
 
     std::vector<Message> messages_;

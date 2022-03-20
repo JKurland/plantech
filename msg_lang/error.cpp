@@ -1,6 +1,7 @@
 #include "error.h"
 
 #include <string>
+#include <cassert>
 
 
 std::string formatError(const Error& error) {
@@ -24,19 +25,26 @@ SourceLocation getLocation(const SourceFile& sourceFile, size_t pos) {
     size_t lineNumber = 0;
     size_t lineEnd = sourceFile.content.find('\n');
 
+    assert(pos < sourceFile.content.size());
+
     while (lineEnd != std::string::npos && lineEnd < pos) {
-        lineStart = lineEnd;
+        lineStart = lineEnd + 1;
         lineNumber++;
-        lineEnd = sourceFile.content.find('\n', lineStart + 1);
+        lineEnd = sourceFile.content.find('\n', lineStart);
     }
 
     if (lineEnd == std::string::npos) {
         lineEnd = sourceFile.content.size() - 1;
     }
 
+    std::string_view snippet = std::string_view(&sourceFile.content[lineStart], lineEnd - lineStart);
+    while (snippet.ends_with("\n")) {
+        snippet.remove_suffix(1);
+    }
+
     return SourceLocation {
         .path = sourceFile.path,
-        .snippet = std::string_view(&sourceFile.content[lineStart], lineEnd - lineStart),
+        .snippet = snippet,
         .line = lineNumber,
         .character = pos - lineStart,
     };

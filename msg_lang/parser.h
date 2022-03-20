@@ -41,9 +41,18 @@ namespace AstNodeV {
         TokenV::Word type;
         TokenV::Word name;
     };
+
+    struct NamespaceSpec {
+        TokenV::Word ns;
+    };
 }
 
-class AstNode: public MyVariant<AstNodeV::File, AstNodeV::Item, AstNodeV::ItemMember> {
+class AstNode: public MyVariant<
+    AstNodeV::File,
+    AstNodeV::Item,
+    AstNodeV::ItemMember,
+    AstNodeV::NamespaceSpec
+> {
 public:
     template<typename...Ts>
     AstNode(size_t sourcePos, Ts&&...args): MyVariant(std::forward<Ts>(args)...), sourcePos(sourcePos) {}

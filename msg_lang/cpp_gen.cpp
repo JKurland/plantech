@@ -31,6 +31,12 @@ CppSource genCpp(const module::Module& module) {
     header.append("#include <string>\n");
     header.append("#include <cstdint>\n");
 
+    if (module.withNamespace) {
+        header.append("namespace ");
+        header.append(*module.withNamespace);
+        header.append(" {");
+    }
+
     // for now just forward declare everything then define everything
     for (const auto& message: module.messages()) {
         header.append("struct ");
@@ -52,6 +58,10 @@ CppSource genCpp(const module::Module& module) {
             header.append(";\n");
         }
         header.append("};\n");
+    }
+
+    if (module.withNamespace) {
+        header.push_back('}');
     }
 
     return CppSource{

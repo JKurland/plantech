@@ -33,6 +33,7 @@ public:
     Module build() {
         findMessageItems();
         fillInMessageMembers();
+        processNamespaces();
         return mod;
     }
 
@@ -40,6 +41,10 @@ private:
     const std::vector<AstFile>& files;
     std::unordered_map<ItemName, ItemFromFile, ItemNameHash> messageItems;
     Module mod;
+
+    void addError(Error e) {
+        mod.errors.push_back(std::move(e));
+    }
 
     DataType parseDataType(std::string_view s) {
         if (s == "int") {
@@ -84,6 +89,25 @@ private:
                 auto& member = memberNode.template get<AstNodeV::ItemMember>();
 
                 message.members.push_back(MessageMember{parseDataType(member.type.s), std::string(member.name.s)});
+            }
+        }
+    }
+
+    void processNamespaces() {
+        for (const auto& file: files) {
+            for (const AstNode& node: file.ast.items) {
+                if (node.template is<AstNodeV::NamespaceSpec>()) {
+                    if (!mod.withNamespace) {
+                        mod.withNamespace = node.template get<AstNodeV::NamespaceSpec>().ns.s;
+                    } else {
+                        if (*mod.withNamespace != node.template get<AstNodeV::NamespaceSpec>().ns.s) {
+                            addError(Error{
+                                .message = "Conflicting namespace specifications",
+                                .location = getLocation(file.sourceFile, node.sourcePos)
+                            });
+                        }
+                    }
+                }
             }
         }
     }

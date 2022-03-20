@@ -247,6 +247,19 @@ private:
         popToken();
     }
 
+    void parseNamespace() {
+        popToken();
+        if (tokens.front().template is<TokenV::Word>()) {
+            ast.items.push_back(AstNode(
+                tokens.front().sourcePos,
+                AstNodeV::NamespaceSpec{tokens.front().template get<TokenV::Word>()}
+            ));
+            popToken();
+        } else {
+            addError("Expected word");
+        }
+    }
+
     void parse() {
         while (!tokens.empty()) {
             while (tokens.front().template is<TokenV::Comment>()) {
@@ -256,7 +269,12 @@ private:
             thisParseSuccessful = true;
 
             if (tokens.front().template is<TokenV::Word>()) {
-                parseItem();
+                auto token = tokens.front().template get<TokenV::Word>();
+                if (token.s == "namespace") {
+                    parseNamespace();
+                } else {
+                    parseItem();
+                }
             } else {
                 addError("Unexpected token");
                 popToken();

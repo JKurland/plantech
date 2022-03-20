@@ -139,3 +139,58 @@ event E {
     ASSERT_TRUE(srtd);
     ASSERT_PRED3(inAscendingOrder{}, *hello, *h2lasd, *srtd);
 }
+
+
+TEST_F(TestModule, namespace_should_be_nullopt_if_not_set) {
+    addFile(R"#(
+event E {
+    int hello
+    float h2lasd
+    str srtd
+})#");
+
+    auto m = compile();
+
+    ASSERT_EQ(m.withNamespace, std::nullopt);
+}
+
+TEST_F(TestModule, namespace_can_be_set_with_namespace_keyword) {
+    addFile(R"#(
+namespace testNamespace
+
+event E {
+    int hello
+    float h2lasd
+    str srtd
+})#");
+
+    auto m = compile();
+    ASSERT_EQ(m.withNamespace, "testNamespace");
+}
+
+TEST_F(TestModule, multiple_namespaces_set_should_be_an_error) {
+    addFile(R"#(
+namespace testNamespace
+namespace testNamespaceConflict
+
+event E {
+    int hello
+    float h2lasd
+    str srtd
+})#");
+
+    auto m = compile();
+    ASSERT_NE(m.errors, std::vector<Error>());
+}
+
+
+TEST_F(TestModule, multiple_namespaces_set_should_be_an_error_unless_there_is_no_conflict) {
+    addFile(R"#(
+namespace testNamespace
+namespace testNamespace
+)#");
+
+    auto m = compile();
+    ASSERT_EQ(m.withNamespace, "testNamespace");
+    ASSERT_EQ(m.errors, std::vector<Error>());
+}
