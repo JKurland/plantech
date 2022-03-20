@@ -34,7 +34,7 @@ CppSource genCpp(const module::Module& module) {
     if (module.withNamespace) {
         header.append("namespace ");
         header.append(*module.withNamespace);
-        header.append(" {");
+        header.append(" {\n");
     }
 
     // for now just forward declare everything then define everything
@@ -44,6 +44,8 @@ CppSource genCpp(const module::Module& module) {
         header.push_back(';');
         header.push_back('\n');
     }
+
+    header.push_back('\n');
 
     // now define everything
     for (const auto& message: module.messages()) {

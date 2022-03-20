@@ -3,5 +3,5 @@ cc_library(
     hdrs = glob(["*.h"]),
     visibility = ["//visibility:public"],
     copts = ["-Werror"],
-    deps = ["//framework"],
+    deps = ["//framework", "//messages"],
 )
