@@ -289,7 +289,11 @@ AstFile parseTokenisedFile(TokenisedFile&& tokenisedFile) {
 
 
 AstFile parse(const std::filesystem::path& path) {
-    TokenisedFile tokenisedFile = tokenise(loadFile(path));
+    return parse(loadFile(path));
+}
+
+AstFile parse(SourceFile source) {
+    TokenisedFile tokenisedFile = tokenise(std::move(source));
 
     if (!tokenisedFile.errors.empty()) {
         return AstFile{

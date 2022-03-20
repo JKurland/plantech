@@ -61,4 +61,5 @@ struct AstFile {
 // if AstFile.errors is not empty on return then the ast does not necessarily contain anything useful
 // although it might be worth processing it further to find more errors
 AstFile parse(const std::filesystem::path& path);
+AstFile parse(SourceFile source);
 }

@@ -113,4 +113,23 @@ const std::vector<Message>& Module::messages() const {
     return messages_;
 }
 
+bool Module::hasMessage(const ItemName& name) const {
+    for (const auto& m: messages_) {
+        if (m.name == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::optional<const Message*> Module::messageByName(const ItemName& name) const {
+    for (const auto& m: messages_) {
+        if (m.name == name) {
+            return &m;
+        }
+    }
+
+    return std::nullopt;
+}
+
 }

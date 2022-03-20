@@ -27,6 +27,10 @@ enum class BuiltinType {
 
 
 class MessageHandle {
+public:
+    std::weak_ordering operator<=>(const MessageHandle&) const = default;
+
+private:
     MessageHandle(size_t idx): idx(idx) {}
     size_t idx;
     friend class Module;
@@ -53,6 +57,9 @@ public:
     const Message& getMessage(MessageHandle handle) const;
 
     const std::vector<Message>& messages() const;
+
+    bool hasMessage(const ItemName& name) const;
+    std::optional<const Message*> messageByName(const ItemName& name) const;
 private:
 
     std::vector<Message> messages_;

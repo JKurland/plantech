@@ -98,19 +98,20 @@ int main(int argc, char** argv) {
         asts.push_back(parse(path));
     }
 
-
-    bool hadErrors = false;
-    for (const auto& ast: asts) {
-        if (!ast.errors.empty()) {
-            hadErrors = true;
-            for (const auto& error: ast.errors) {
-                std::cout << formatError(error) << std::endl;
+    {
+        bool hadErrors = false;
+        for (const auto& ast: asts) {
+            if (!ast.errors.empty()) {
+                hadErrors = true;
+                for (const auto& error: ast.errors) {
+                    std::cout << formatError(error) << std::endl;
+                }
             }
         }
-    }
 
-    if (hadErrors) {
-        return 1;
+        if (hadErrors) {
+            return 1;
+        }
     }
 
     module::Module mod = module::compile(asts);
