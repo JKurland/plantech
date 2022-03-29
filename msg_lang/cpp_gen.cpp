@@ -59,6 +59,13 @@ CppSource genCpp(const module::Module& module) {
             header.append(member.name);
             header.append(";\n");
         }
+
+        if (message.expectedResponse) {
+            header.append("    using ResponseT = ");
+            header.append(dumpDataType(*message.expectedResponse));
+            header.append(";\n");
+        }
+
         header.append("};\n");
     }
 

@@ -141,6 +141,12 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
             remaining.remove_prefix(1);
         }
 
+        // Thin Arrow
+        else if (remaining.size() >= 2 && remaining.starts_with("->")) {
+            tokens.emplace_back(curPos(), TokenV::ThinArrow{});
+            remaining.remove_prefix(2);
+        }
+
         else {
             if (!previousTokenWasUnrecognised) {
                 errors.push_back(Error{"Unrecognised Token" , getLocation(sourceFile, curPos())});
@@ -202,17 +208,37 @@ private:
     void parseItem() {
         AstNodeV::Item item;
         size_t sourcePos = tokens.front().sourcePos;
+
+        // type
         item.type = tokens.front().template get<TokenV::Word>();
         popToken();
 
+        // name
         if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
             addError("Expected word");
             return;
         }
-
         item.name = tokens.front().template get<TokenV::Word>();
         popToken();
 
+        if (tokens.empty()) {
+            addError("Expected word or ->");
+            return;
+        }
+
+        // optional response type
+        if (tokens.front().template is<TokenV::ThinArrow>()) {
+            popToken();
+            if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
+                addError("Expected word");
+                return;
+            }
+
+            item.responseType = tokens.front().template get<TokenV::Word>();
+            popToken();
+        }
+
+        // opening brace
         if (tokens.empty() || !tokens.front().template is<TokenV::CurlyBracket>()) {
             addError("Expected {");
             return;

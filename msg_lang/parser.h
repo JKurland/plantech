@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <optional>
 #include <stdint.h>
 
 #include "my_variant.h"
@@ -15,9 +16,10 @@ namespace TokenV {
     struct CurlyBracket {bool open;};
     struct Comment {};
     struct StringLiteral {std::string_view s;};
+    struct ThinArrow {};
 }
 
-class Token: public MyVariant<TokenV::Word, TokenV::CurlyBracket, TokenV::Comment, TokenV::StringLiteral> {
+class Token: public MyVariant<TokenV::Word, TokenV::CurlyBracket, TokenV::Comment, TokenV::StringLiteral, TokenV::ThinArrow> {
 public:
     template<typename...Ts>
     Token(size_t sourcePos, Ts&&...args): MyVariant(std::forward<Ts>(args)...), sourcePos(sourcePos) {}
@@ -34,6 +36,7 @@ namespace AstNodeV {
     struct Item {
         TokenV::Word type;
         TokenV::Word name;
+        std::optional<TokenV::Word> responseType;
         std::vector<AstNode> members;
     };
 

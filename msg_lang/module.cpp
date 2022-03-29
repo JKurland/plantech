@@ -33,6 +33,7 @@ public:
     Module build() {
         findMessageItems();
         fillInMessageMembers();
+        fillInMessageReponseTypes();
         processNamespaces();
         return mod;
     }
@@ -89,6 +90,19 @@ private:
                 auto& member = memberNode.template get<AstNodeV::ItemMember>();
 
                 message.members.push_back(MessageMember{parseDataType(member.type.s), std::string(member.name.s)});
+            }
+        }
+    }
+
+    void fillInMessageReponseTypes() {
+        for (auto& item: messageItems) {
+            auto& itemFromFile = item.second;
+            assert(itemFromFile.itemNode.template is<AstNodeV::Item>());
+            auto& message = mod.getMessage(itemFromFile.handle);
+
+            auto& itemNode = itemFromFile.itemNode.template get<AstNodeV::Item>();
+            if (itemNode.responseType) {
+                message.expectedResponse = parseDataType(itemNode.responseType->s);
             }
         }
     }

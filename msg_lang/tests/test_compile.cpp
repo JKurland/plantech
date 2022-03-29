@@ -194,3 +194,38 @@ namespace testNamespace
     ASSERT_EQ(m.withNamespace, "testNamespace");
     ASSERT_EQ(m.errors, std::vector<Error>());
 }
+
+TEST_F(TestModule, request_return_types_should_be_available) {
+    addFile(R"#(
+request R -> int {}
+    )#");
+
+    auto m = compile();
+    auto message = m.messageByName(ItemName{"R"});
+
+    ASSERT_NE(message, std::nullopt);
+    ASSERT_NE((*message)->expectedResponse, std::nullopt);
+    ASSERT_EQ(*((*message)->expectedResponse), module::BuiltinType::Int);
+}
+
+
+TEST_F(TestModule, request_returning_another_message_should_work) {
+    addFile(R"#(
+data D {
+    int i
+}
+request R -> D {}
+    )#");
+
+    auto m = compile();
+    auto message = m.messageByName(ItemName{"R"});
+
+    ASSERT_NE(message, std::nullopt);
+    ASSERT_NE((*message)->expectedResponse, std::nullopt);
+    ASSERT_TRUE((*message)->expectedResponse->template is<module::MessageHandle>());
+
+    auto responseMessageHandle = (*message)->expectedResponse->template get<module::MessageHandle>();
+    auto responseMessage = m.getMessage(responseMessageHandle);
+
+    ASSERT_EQ(responseMessage.name, ItemName{"D"});
+}

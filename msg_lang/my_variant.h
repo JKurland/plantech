@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <cassert>
+#include <compare>
 
 namespace pt::msg_lang {
 template<typename...Ts>
@@ -25,6 +26,9 @@ public:
         assert(is<T>());
         return std::get<T>(static_cast<const std::variant<Ts...>&>(*this));
     };
+
+    constexpr auto operator<=>(const MyVariant&) const = default;
 };
+
 
 }
