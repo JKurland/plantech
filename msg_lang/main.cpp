@@ -71,8 +71,8 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
 int main(int argc, char** argv) {
     const auto args_result = parseArgs(argc, argv);
     if (std::holds_alternative<std::string>(args_result)) {
-        std::cout << std::get<std::string>(args_result) << std::endl;
-        std::cout << kUsage << std::endl;
+        std::cerr << std::get<std::string>(args_result) << std::endl;
+        std::cerr << kUsage << std::endl;
         return 1;
     }
 
@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
     bool allInputsExist = true;
     for (const auto& path: inputs) {
         if (!std::filesystem::exists(path)) {
-            std::cout << "Path " << path << " does not exist" << std::endl;
+            std::cerr << "Path " << path << " does not exist" << std::endl;
             allInputsExist = false;
         }
     }
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
             if (!ast.errors.empty()) {
                 hadErrors = true;
                 for (const auto& error: ast.errors) {
-                    std::cout << formatError(error) << std::endl;
+                    std::cerr << formatError(error) << std::endl;
                 }
             }
         }
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
         }
 
         if (!f.good()) {
-            std::cout << "Failed to write to header file" << std::endl;
+            std::cerr << "Failed to write to header file" << std::endl;
             return 2;
         }
     }
@@ -137,11 +137,10 @@ int main(int argc, char** argv) {
         }
 
         if (!f.good()) {
-            std::cout << "Failed to write to source file" << std::endl;
+            std::cerr << "Failed to write to source file" << std::endl;
             return 2;
         }   
     }
 
-
-    std::cout << "Compilation Successful" << std::endl;
+    return 0;
 }
