@@ -14,3 +14,11 @@ event template[T] {
 event template2[T, U] {
     int i
 }
+
+event template3[T] {
+    T t
+}
+
+request templateR[T] -> T {
+    T t
+}

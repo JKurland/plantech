@@ -36,8 +36,12 @@ CppSource genCpp(const module::Module& module) {
                     return "std::string";
                 }
             }
+        } else if (dataType.template is<module::ErrorDataType>()) {
+            return "__ERROR__";
+        } else if (dataType.template is<module::TemplateParameter>()) {
+            return dataType.template get<module::TemplateParameter>().name;
         }
-    
+
         assert(dataType.template is<module::MessageHandle>());
         return module.getMessage(dataType.template get<module::MessageHandle>()).name.name;
     };

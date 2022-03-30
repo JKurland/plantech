@@ -36,13 +36,19 @@ private:
     friend class Module;
 };
 
-using DataType = MyVariant<BuiltinType, MessageHandle>;
-
 struct TemplateParameter {
     std::string name;
 
     auto operator<=>(const TemplateParameter&) const = default;
 };
+
+// a type that is produced when there is some error in the source
+struct ErrorDataType {
+    auto operator<=>(const ErrorDataType&) const = default;
+};
+
+using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType>;
+
 
 struct MessageMember {
     DataType type;

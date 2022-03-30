@@ -48,7 +48,7 @@ private:
         mod.errors.push_back(std::move(e));
     }
 
-    DataType parseDataType(std::string_view s) {
+    DataType parseDataType(std::string_view s, const Message& m, const SourceFile& f, size_t pos) {
         if (s == "int") {
             return BuiltinType::Int;
         }
@@ -59,8 +59,20 @@ private:
             return BuiltinType::String;
         }
         else {
+            // check the template params first, then the messages in messageItems
+            if (m.templateParams) {
+                for (const auto& p: *m.templateParams) {
+                    if (p.name == s) {
+                        return p;
+                    }
+                }
+            }
+
             auto it = messageItems.find(ItemName{std::string(s)});
-            assert(it != messageItems.end());
+            if (it == messageItems.end()) {
+                addError(Error{"Unknown type", getLocation(f, pos)});
+                return ErrorDataType{};
+            }
             return DataType{it->second.handle};
         }
     }
@@ -111,7 +123,8 @@ private:
                 assert(memberNode.template is<AstNodeV::ItemMember>());
                 auto& member = memberNode.template get<AstNodeV::ItemMember>();
 
-                message.members.push_back(MessageMember{parseDataType(member.type.s), std::string(member.name.s)});
+                DataType dataType = parseDataType(member.type.s, message, itemFromFile.file->sourceFile, memberNode.sourcePos);
+                message.members.push_back(MessageMember{dataType, std::string(member.name.s)});
             }
         }
     }
@@ -124,7 +137,8 @@ private:
 
             auto& itemNode = itemFromFile.itemNode.template get<AstNodeV::Item>();
             if (itemNode.responseType) {
-                message.expectedResponse = parseDataType(itemNode.responseType->s);
+                DataType dataType = parseDataType(itemNode.responseType->s, message, itemFromFile.file->sourceFile, itemFromFile.itemNode.sourcePos);
+                message.expectedResponse = dataType;
             }
         }
     }

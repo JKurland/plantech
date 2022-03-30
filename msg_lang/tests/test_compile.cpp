@@ -154,6 +154,27 @@ event E {
     ASSERT_PRED3(inAscendingOrder{}, *hello, *h2lasd, *srtd);
 }
 
+TEST_F(TestModule, should_error_if_unknown_type_used) {
+    addFile(R"#(
+event E {
+    UnknownType u
+}
+    )#");
+
+    auto m = compile();
+
+    ASSERT_PRED1([](const auto& v){return !v.empty();}, m.errors);
+}
+
+TEST_F(TestModule, should_error_if_unknown_type_used_as_response) {
+    addFile(R"#(
+request E -> UnknownType {}
+    )#");
+
+    auto m = compile();
+
+    ASSERT_PRED1([](const auto& v){return !v.empty();}, m.errors);
+}
 
 TEST_F(TestModule, namespace_should_be_nullopt_if_not_set) {
     addFile(R"#(
