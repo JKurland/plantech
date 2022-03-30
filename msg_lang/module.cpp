@@ -59,7 +59,6 @@ private:
             return BuiltinType::String;
         }
         else {
-            std::cout << s << std::endl;
             auto it = messageItems.find(ItemName{std::string(s)});
             assert(it != messageItems.end());
             return DataType{it->second.handle};

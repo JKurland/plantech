@@ -5,6 +5,20 @@
 
 namespace pt::msg_lang {
 
+void appendTemplateString(const module::Message& message, std::string& s) {
+    s.append("template<");
+    bool skipComma = true;
+    for (const auto& p: *message.templateParams) {
+        if (!skipComma) {
+            s.append(", ");
+        }
+        skipComma = false;
+
+        s.append("typename ");
+        s.append(p.name);
+    }
+    s.append(">\n");
+}
 
 CppSource genCpp(const module::Module& module) {
     std::string header;
@@ -39,6 +53,9 @@ CppSource genCpp(const module::Module& module) {
 
     // for now just forward declare everything then define everything
     for (const auto& message: module.messages()) {
+        if (message.templateParams) {
+            appendTemplateString(message, header);
+        }
         header.append("struct ");
         header.append(message.name.name);
         header.push_back(';');
@@ -49,6 +66,10 @@ CppSource genCpp(const module::Module& module) {
 
     // now define everything
     for (const auto& message: module.messages()) {
+        if (message.templateParams) {
+            appendTemplateString(message, header);
+        }
+
         header.append("struct ");
         header.append(message.name.name);
         header.append(" {\n");

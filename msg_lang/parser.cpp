@@ -160,7 +160,7 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
         }
 
         // Comma
-        else if (remaining.front() == '\'') {
+        else if (remaining.front() == ',') {
             tokens.emplace_back(curPos(), TokenV::Comma{});
             remaining.remove_prefix(1);
         }
