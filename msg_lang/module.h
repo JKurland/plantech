@@ -38,6 +38,12 @@ private:
 
 using DataType = MyVariant<BuiltinType, MessageHandle>;
 
+struct TemplateParameter {
+    std::string name;
+
+    auto operator<=>(const TemplateParameter&) const = default;
+};
+
 struct MessageMember {
     DataType type;
     std::string name;
@@ -48,6 +54,7 @@ struct Message {
     ItemName name;
     std::vector<MessageMember> members;
     std::optional<DataType> expectedResponse;
+    std::optional<std::vector<TemplateParameter>> templateParams;
 };
 
 class Module {

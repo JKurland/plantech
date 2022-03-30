@@ -17,9 +17,11 @@ namespace TokenV {
     struct Comment {};
     struct StringLiteral {std::string_view s;};
     struct ThinArrow {};
+    struct SquareBracket {bool open;};
+    struct Comma {};
 }
 
-class Token: public MyVariant<TokenV::Word, TokenV::CurlyBracket, TokenV::Comment, TokenV::StringLiteral, TokenV::ThinArrow> {
+class Token: public MyVariant<TokenV::Word, TokenV::CurlyBracket, TokenV::Comment, TokenV::StringLiteral, TokenV::ThinArrow, TokenV::SquareBracket, TokenV::Comma> {
 public:
     template<typename...Ts>
     Token(size_t sourcePos, Ts&&...args): MyVariant(std::forward<Ts>(args)...), sourcePos(sourcePos) {}
@@ -36,6 +38,7 @@ namespace AstNodeV {
     struct Item {
         TokenV::Word type;
         TokenV::Word name;
+        std::optional<std::vector<AstNode>> templateParams;
         std::optional<TokenV::Word> responseType;
         std::vector<AstNode> members;
     };
@@ -48,13 +51,18 @@ namespace AstNodeV {
     struct NamespaceSpec {
         TokenV::Word ns;
     };
+
+    struct TemplateParam {
+        TokenV::Word name;
+    };
 }
 
 class AstNode: public MyVariant<
     AstNodeV::File,
     AstNodeV::Item,
     AstNodeV::ItemMember,
-    AstNodeV::NamespaceSpec
+    AstNodeV::NamespaceSpec,
+    AstNodeV::TemplateParam
 > {
 public:
     template<typename...Ts>

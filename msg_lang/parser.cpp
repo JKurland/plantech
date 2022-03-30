@@ -129,22 +129,40 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
             remaining.remove_prefix(newlinePos);
         }
 
-        // Open Brace
+        // Open Curly Brace
         else if (remaining.front() == '{') {
             tokens.emplace_back(curPos(), TokenV::CurlyBracket{.open=true});
             remaining.remove_prefix(1);
         }
 
-        // Close Brace
+        // Close Curly Brace
         else if (remaining.front() == '}') {
             tokens.emplace_back(curPos(), TokenV::CurlyBracket{.open=false});
             remaining.remove_prefix(1);
         }
 
+        // Open Square Brace
+        else if (remaining.front() == '[') {
+            tokens.emplace_back(curPos(), TokenV::SquareBracket{.open=true});
+            remaining.remove_prefix(1);
+        }
+
+        // Close Square Brace
+        else if (remaining.front() == ']') {
+            tokens.emplace_back(curPos(), TokenV::SquareBracket{.open=false});
+            remaining.remove_prefix(1);
+        }
+
         // Thin Arrow
-        else if (remaining.size() >= 2 && remaining.starts_with("->")) {
+        else if (remaining.starts_with("->")) {
             tokens.emplace_back(curPos(), TokenV::ThinArrow{});
             remaining.remove_prefix(2);
+        }
+
+        // Comma
+        else if (remaining.front() == '\'') {
+            tokens.emplace_back(curPos(), TokenV::Comma{});
+            remaining.remove_prefix(1);
         }
 
         else {
@@ -205,6 +223,44 @@ private:
         tokens = tokens.last(tokens.size() - 1);
     }
 
+    std::optional<std::vector<AstNode>> parseTemplateParams() {
+        // pop "["
+        popToken();
+
+        auto frontIsClosingBrace = [&]{
+            return tokens.front().template is<TokenV::SquareBracket>() && !tokens.front().template get<TokenV::SquareBracket>().open;
+        };
+
+        std::vector<AstNode> rtn;
+
+        while (!tokens.empty() && !frontIsClosingBrace()) {
+            if (!tokens.front().template is<TokenV::Word>()) {
+                addError("Expecting word");
+                return std::nullopt;
+            }
+
+            rtn.push_back(AstNode(tokens.front().sourcePos, AstNodeV::TemplateParam{tokens.front().template get<TokenV::Word>()}));
+            popToken();
+
+            if (tokens.empty() || (!tokens.front().template is<TokenV::Comma>() && !frontIsClosingBrace())) {
+                addError("Expected , or ]");
+                return std::nullopt;
+            }
+
+            if (tokens.front().template is<TokenV::Comma>()) {
+                popToken();
+            }
+        }
+
+        if (tokens.empty()) {
+            addError("Expected ]");
+            return std::nullopt;
+        }
+
+        popToken();
+        return rtn;
+    }
+
     void parseItem() {
         AstNodeV::Item item;
         size_t sourcePos = tokens.front().sourcePos;
@@ -222,9 +278,25 @@ private:
         popToken();
 
         if (tokens.empty()) {
-            addError("Expected word or ->");
+            addError("Expected word, -> or [");
             return;
         }
+
+        // optional template parameters
+        if (tokens.front().template is<TokenV::SquareBracket>() && tokens.front().template get<TokenV::SquareBracket>().open) {
+            auto templateParams = parseTemplateParams();
+            if (!templateParams) {
+                return;
+            }
+
+            item.templateParams = std::move(*templateParams);
+
+            if (tokens.empty()) {
+                addError("Expected word or ->");
+                return;
+            }
+        }
+
 
         // optional response type
         if (tokens.front().template is<TokenV::ThinArrow>()) {

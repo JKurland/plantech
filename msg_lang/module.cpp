@@ -32,6 +32,7 @@ public:
 
     Module build() {
         findMessageItems();
+        fillInTemplateParameters();
         fillInMessageMembers();
         fillInMessageReponseTypes();
         processNamespaces();
@@ -58,6 +59,7 @@ private:
             return BuiltinType::String;
         }
         else {
+            std::cout << s << std::endl;
             auto it = messageItems.find(ItemName{std::string(s)});
             assert(it != messageItems.end());
             return DataType{it->second.handle};
@@ -75,6 +77,27 @@ private:
                     bool inserted = messageItems.emplace(name, ItemFromFile{node, &file, handle}).second;
                     assert(inserted);
                     (void)inserted;
+                }
+            }
+        }
+    }
+
+    void fillInTemplateParameters() {
+        for (auto& item: messageItems) {
+            auto& itemFromFile = item.second;
+            assert(itemFromFile.itemNode.template is<AstNodeV::Item>());
+
+            auto& itemNode = itemFromFile.itemNode.template get<AstNodeV::Item>();
+
+            auto& message = mod.getMessage(itemFromFile.handle);
+
+            if (itemNode.templateParams) {
+                message.templateParams = std::vector<TemplateParameter>();
+                for (const auto& p: *itemNode.templateParams) {
+                    assert(p.template is<AstNodeV::TemplateParam>());
+                    message.templateParams->push_back(
+                        TemplateParameter{std::string(p.template get<AstNodeV::TemplateParam>().name.s)}
+                    );
                 }
             }
         }

@@ -39,6 +39,20 @@ bool containsMember(const std::vector<module::MessageMember>& members, module::D
     return false;
 }
 
+bool containsTemplateParameter(const module::Message& message, const std::string& name) {
+    if (!message.templateParams) {
+        return false;
+    }
+
+    for (const auto& param: *message.templateParams) {
+        if (param.name == name) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::optional<size_t> memberIdx(const std::vector<module::MessageMember>& members, const std::string& name) {
     size_t i = 0;
     for (const auto& member: members) {
@@ -228,4 +242,16 @@ request R -> D {}
     auto responseMessage = m.getMessage(responseMessageHandle);
 
     ASSERT_EQ(responseMessage.name, ItemName{"D"});
+}
+
+TEST_F(TestModule, template_parameter_should_be_in_module) {
+    addFile(R"#(
+request R[T] -> int {}
+    )#");
+
+    auto m = compile();
+    auto message = m.messageByName(ItemName("R"));
+
+    ASSERT_NE(message, std::nullopt);
+    ASSERT_PRED2(containsTemplateParameter, **message, "T");
 }
