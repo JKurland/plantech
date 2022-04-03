@@ -19,9 +19,19 @@ namespace TokenV {
     struct ThinArrow {};
     struct SquareBracket {bool open;};
     struct Comma {};
+    struct DoubleColon {};
 }
 
-class Token: public MyVariant<TokenV::Word, TokenV::CurlyBracket, TokenV::Comment, TokenV::StringLiteral, TokenV::ThinArrow, TokenV::SquareBracket, TokenV::Comma> {
+class Token: public MyVariant<
+    TokenV::Word,
+    TokenV::CurlyBracket,
+    TokenV::Comment,
+    TokenV::StringLiteral,
+    TokenV::ThinArrow,
+    TokenV::SquareBracket,
+    TokenV::Comma,
+    TokenV::DoubleColon
+> {
 public:
     template<typename...Ts>
     Token(size_t sourcePos, Ts&&...args): MyVariant(std::forward<Ts>(args)...), sourcePos(sourcePos) {}
@@ -32,19 +42,19 @@ public:
 class AstNode;
 namespace AstNodeV {
     struct File {
-        std::vector<AstNode> items;
+        std::vector<AstNode> items; // Item
     };
 
     struct Item {
         TokenV::Word type;
         TokenV::Word name;
-        std::optional<std::vector<AstNode>> templateParams;
-        std::optional<TokenV::Word> responseType;
-        std::vector<AstNode> members;
+        std::optional<std::vector<AstNode>> templateParams; // TemplateParam
+        std::optional<std::unique_ptr<AstNode>> responseType; // TypeName
+        std::vector<AstNode> members; // ItemMember
     };
 
     struct ItemMember {
-        TokenV::Word type;
+        std::unique_ptr<AstNode> type; // TypeName
         TokenV::Word name;
     };
 
@@ -55,6 +65,10 @@ namespace AstNodeV {
     struct TemplateParam {
         TokenV::Word name;
     };
+
+    struct TypeName {
+        std::vector<TokenV::Word> nameParts;
+    };
 }
 
 class AstNode: public MyVariant<
@@ -62,7 +76,8 @@ class AstNode: public MyVariant<
     AstNodeV::Item,
     AstNodeV::ItemMember,
     AstNodeV::NamespaceSpec,
-    AstNodeV::TemplateParam
+    AstNodeV::TemplateParam,
+    AstNodeV::TypeName
 > {
 public:
     template<typename...Ts>

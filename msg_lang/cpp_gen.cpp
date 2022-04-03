@@ -40,6 +40,15 @@ CppSource genCpp(const module::Module& module) {
             return "__ERROR__";
         } else if (dataType.template is<module::TemplateParameter>()) {
             return dataType.template get<module::TemplateParameter>().name;
+        } else if (dataType.template is<module::TemplateMemberType>()) {
+            const auto& t = dataType.template get<module::TemplateMemberType>();
+            std::string rtn = "typename ";
+            rtn.append(t.param.name);
+            for (const auto& p: t.path) {
+                rtn.append("::");
+                rtn.append(p);
+            }
+            return rtn;
         }
 
         assert(dataType.template is<module::MessageHandle>());

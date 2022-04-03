@@ -21,7 +21,7 @@ struct ItemNameHash {
 };
 
 struct ItemFromFile {
-    AstNode itemNode;
+    const AstNode* itemNode;
     const AstFile* file;
     MessageHandle handle;
 };
@@ -48,32 +48,55 @@ private:
         mod.errors.push_back(std::move(e));
     }
 
-    DataType parseDataType(std::string_view s, const Message& m, const SourceFile& f, size_t pos) {
-        if (s == "int") {
-            return BuiltinType::Int;
-        }
-        else if (s == "float") {
-            return BuiltinType::Float;
-        }
-        else if (s == "str") {
-            return BuiltinType::String;
-        }
-        else {
-            // check the template params first, then the messages in messageItems
-            if (m.templateParams) {
-                for (const auto& p: *m.templateParams) {
-                    if (p.name == s) {
-                        return p;
+    DataType parseDataType(AstNode& node, const Message& m, const SourceFile& f, size_t pos) {
+        assert(node.template is<AstNodeV::TypeName>());
+        auto typeName = node.template get<AstNodeV::TypeName>();
+
+        assert(!typeName.nameParts.empty());
+        if (typeName.nameParts.size() == 1) {
+            std::string_view s = typeName.nameParts[0].s;
+            if (s == "int") {
+                return BuiltinType::Int;
+            }
+            else if (s == "float") {
+                return BuiltinType::Float;
+            }
+            else if (s == "str") {
+                return BuiltinType::String;
+            }
+            else {
+                // check the template params first, then the messages in messageItems
+                if (m.templateParams) {
+                    for (const auto& p: *m.templateParams) {
+                        if (p.name == s) {
+                            return p;
+                        }
                     }
                 }
-            }
 
-            auto it = messageItems.find(ItemName{std::string(s)});
-            if (it == messageItems.end()) {
-                addError(Error{"Unknown type", getLocation(f, pos)});
-                return ErrorDataType{};
+                auto it = messageItems.find(ItemName{std::string(s)});
+                if (it == messageItems.end()) {
+                    addError(Error{"Unknown type", getLocation(f, pos)});
+                    return ErrorDataType{};
+                }
+                return DataType{it->second.handle};
             }
-            return DataType{it->second.handle};
+        } else {
+            auto templateParamName = typeName.nameParts.front().s;
+            if (m.templateParams) {
+                for (const auto& p: *m.templateParams) {
+                    if (p.name == templateParamName) {
+                        std::vector<std::string> parts;
+                        for (size_t i = 1; i < typeName.nameParts.size(); i++) {
+                            parts.emplace_back(typeName.nameParts[i].s);
+                        }
+                        return TemplateMemberType{p, std::move(parts)};
+                    }
+
+                }
+            }
+            addError(Error{"No such template parameter, member types are only supported for template parameters", getLocation(f, pos)});
+            return ErrorDataType{};
         }
     }
 
@@ -85,7 +108,7 @@ private:
                     ItemName name{std::string{item.name.s}};
 
                     auto handle = mod.addMessage(Message{name, {}, std::nullopt});
-                    bool inserted = messageItems.emplace(name, ItemFromFile{node, &file, handle}).second;
+                    bool inserted = messageItems.emplace(name, ItemFromFile{&node, &file, handle}).second;
                     assert(inserted);
                     (void)inserted;
                 }
@@ -96,9 +119,9 @@ private:
     void fillInTemplateParameters() {
         for (auto& item: messageItems) {
             auto& itemFromFile = item.second;
-            assert(itemFromFile.itemNode.template is<AstNodeV::Item>());
+            assert(itemFromFile.itemNode->template is<AstNodeV::Item>());
 
-            auto& itemNode = itemFromFile.itemNode.template get<AstNodeV::Item>();
+            auto& itemNode = itemFromFile.itemNode->template get<AstNodeV::Item>();
 
             auto& message = mod.getMessage(itemFromFile.handle);
 
@@ -117,13 +140,13 @@ private:
     void fillInMessageMembers() {
         for (auto& item: messageItems) {
             auto& itemFromFile = item.second;
-            assert(itemFromFile.itemNode.template is<AstNodeV::Item>());
+            assert(itemFromFile.itemNode->template is<AstNodeV::Item>());
             auto& message = mod.getMessage(itemFromFile.handle);
-            for (const auto& memberNode: itemFromFile.itemNode.template get<AstNodeV::Item>().members) {
+            for (const auto& memberNode: itemFromFile.itemNode->template get<AstNodeV::Item>().members) {
                 assert(memberNode.template is<AstNodeV::ItemMember>());
                 auto& member = memberNode.template get<AstNodeV::ItemMember>();
 
-                DataType dataType = parseDataType(member.type.s, message, itemFromFile.file->sourceFile, memberNode.sourcePos);
+                DataType dataType = parseDataType(*member.type, message, itemFromFile.file->sourceFile, memberNode.sourcePos);
                 message.members.push_back(MessageMember{dataType, std::string(member.name.s)});
             }
         }
@@ -132,12 +155,12 @@ private:
     void fillInMessageReponseTypes() {
         for (auto& item: messageItems) {
             auto& itemFromFile = item.second;
-            assert(itemFromFile.itemNode.template is<AstNodeV::Item>());
+            assert(itemFromFile.itemNode->template is<AstNodeV::Item>());
             auto& message = mod.getMessage(itemFromFile.handle);
 
-            auto& itemNode = itemFromFile.itemNode.template get<AstNodeV::Item>();
+            auto& itemNode = itemFromFile.itemNode->template get<AstNodeV::Item>();
             if (itemNode.responseType) {
-                DataType dataType = parseDataType(itemNode.responseType->s, message, itemFromFile.file->sourceFile, itemFromFile.itemNode.sourcePos);
+                DataType dataType = parseDataType(**itemNode.responseType, message, itemFromFile.file->sourceFile, itemFromFile.itemNode->sourcePos);
                 message.expectedResponse = dataType;
             }
         }

@@ -165,6 +165,12 @@ TokenisedFile tokenise(SourceFile&& sourceFile) {
             remaining.remove_prefix(1);
         }
 
+        // Double Colon
+        else if (remaining.starts_with("::")) {
+            tokens.emplace_back(curPos(), TokenV::DoubleColon{});
+            remaining.remove_prefix(2);
+        }
+
         else {
             if (!previousTokenWasUnrecognised) {
                 errors.push_back(Error{"Unrecognised Token" , getLocation(sourceFile, curPos())});
@@ -220,7 +226,36 @@ private:
     }
 
     void popToken() {
-        tokens = tokens.last(tokens.size() - 1);
+        do {
+            tokens = tokens.last(tokens.size() - 1);
+        } while (!tokens.empty() && tokens.front().template is<TokenV::Comment>());
+    }
+
+    std::optional<std::unique_ptr<AstNode>> parseTypeName() {
+        std::vector<TokenV::Word> parts;
+        
+        if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
+            addError("Expected word");
+            return std::nullopt;
+        }
+
+        auto sourcePos = tokens.front().sourcePos;
+        parts.push_back(tokens.front().template get<TokenV::Word>());
+        popToken();
+
+        while (!tokens.empty() && tokens.front().template is<TokenV::DoubleColon>()) {
+            popToken();
+
+            if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
+                addError("Expected word");
+                return std::nullopt;
+            }
+
+            parts.push_back(tokens.front().template get<TokenV::Word>());
+            popToken();
+        }
+
+        return std::make_unique<AstNode>(sourcePos, AstNodeV::TypeName{std::move(parts)});
     }
 
     std::optional<std::vector<AstNode>> parseTemplateParams() {
@@ -306,8 +341,11 @@ private:
                 return;
             }
 
-            item.responseType = tokens.front().template get<TokenV::Word>();
-            popToken();
+            auto responseTypeName = parseTypeName();
+            if (!responseTypeName) {
+                return;
+            }
+            item.responseType = std::move(*responseTypeName);
         }
 
         // opening brace
@@ -324,8 +362,13 @@ private:
                 addError("Expected member type");
                 return;
             }
-            member.type = tokens.front().template get<TokenV::Word>();
-            popToken();
+
+            auto memberTypeName = parseTypeName();
+            if (!memberTypeName) {
+                return;
+            }
+
+            member.type = std::move(*memberTypeName);
 
             if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
                 addError("Expected member name");

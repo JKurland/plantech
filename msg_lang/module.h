@@ -47,7 +47,16 @@ struct ErrorDataType {
     auto operator<=>(const ErrorDataType&) const = default;
 };
 
-using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType>;
+
+// A member type of a template parameter, for example, T::iterator_type
+struct TemplateMemberType {
+    TemplateParameter param;
+    std::vector<std::string> path;
+
+    auto operator<=>(const TemplateMemberType&) const = default;
+};
+
+using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType>;
 
 
 struct MessageMember {

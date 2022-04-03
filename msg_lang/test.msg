@@ -22,3 +22,7 @@ event template3[T] {
 request templateR[T] -> T {
     T t
 }
+
+event templateE[T] {
+    T::Something s
+}

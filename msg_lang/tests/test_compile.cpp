@@ -276,3 +276,23 @@ request R[T] -> int {}
     ASSERT_NE(message, std::nullopt);
     ASSERT_PRED2(containsTemplateParameter, **message, "T");
 }
+
+TEST_F(TestModule, template_member_usable_as_type) {
+    addFile(R"#(
+event E[T] {
+    T::Something s
+}
+    )#");
+
+    auto m = compile();
+    auto message = m.messageByName(ItemName{"E"});
+
+    ASSERT_NE(message, std::nullopt);
+    auto member = (*message)->members[0];
+    ASSERT_TRUE(member.type.template is<module::TemplateMemberType>());
+    auto t = member.type.template get<module::TemplateMemberType>();
+
+    ASSERT_EQ(t.param.name, "T");
+    ASSERT_EQ(t.path.size(), 1);
+    ASSERT_EQ(t.path[0], "Something");
+}
