@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <compare>
+#include <unordered_set>
 
 #include "my_variant.h"
 #include "error.h"
@@ -13,11 +14,32 @@ namespace pt::msg_lang {
 class AstFile;
 
 struct ItemName {
-    std::string name;
+    template<typename T1, typename...Ts, typename = std::enable_if_t<std::is_constructible_v<std::string, std::decay_t<T1>>>>
+    explicit ItemName(T1&& first, Ts&&...args) {
+        // must have at least 1 part
+        path.reserve(sizeof...(Ts) + 1);
+        path.emplace_back(std::forward<T1>(first));
+        (path.emplace_back(std::forward<Ts>(args)), ...);
+    }
+
+    explicit ItemName(std::vector<std::string> path): path(std::move(path)) {}
+
+    ItemName(const ItemName&) = default;
+    ItemName(ItemName&&) = default;
+
+    ItemName& operator=(const ItemName&) = default;
+    ItemName& operator=(ItemName&&) = default;
+
+    ~ItemName() = default;
+
+    std::vector<std::string> path;
     auto operator<=>(const ItemName&) const = default;
 };
 
 namespace module {
+struct ItemNameHash {
+    size_t operator()(const ItemName& n) const;
+};
 
 enum class BuiltinType {
     Int,
@@ -83,11 +105,14 @@ public:
     bool hasMessage(const ItemName& name) const;
     std::optional<const Message*> messageByName(const ItemName& name) const;
 
+    bool getImportedType(const ItemName& name) const;
+    void addImportedType(const ItemName& name);
+
     // the namespace the messages in this module should be generated in
     std::optional<std::string> withNamespace;
     std::vector<Error> errors;
 private:
-
+    std::unordered_set<ItemName, ItemNameHash> importedTypes_;
     std::vector<Message> messages_;
 };
 

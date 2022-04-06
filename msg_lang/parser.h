@@ -42,7 +42,7 @@ public:
 class AstNode;
 namespace AstNodeV {
     struct File {
-        std::vector<AstNode> items; // Item
+        std::vector<AstNode> items; // Item, NamespaceSpec, TypeImport
     };
 
     struct Item {
@@ -69,6 +69,11 @@ namespace AstNodeV {
     struct TypeName {
         std::vector<TokenV::Word> nameParts;
     };
+
+    struct TypeImport {
+        std::vector<TokenV::Word> nameParts;
+        std::optional<std::vector<AstNode>> templateParams;
+    };
 }
 
 class AstNode: public MyVariant<
@@ -77,7 +82,8 @@ class AstNode: public MyVariant<
     AstNodeV::ItemMember,
     AstNodeV::NamespaceSpec,
     AstNodeV::TemplateParam,
-    AstNodeV::TypeName
+    AstNodeV::TypeName,
+    AstNodeV::TypeImport
 > {
 public:
     template<typename...Ts>

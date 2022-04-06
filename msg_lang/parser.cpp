@@ -231,7 +231,7 @@ private:
         } while (!tokens.empty() && tokens.front().template is<TokenV::Comment>());
     }
 
-    std::optional<std::unique_ptr<AstNode>> parseTypeName() {
+    std::optional<std::vector<TokenV::Word>> parseNamePath() {
         std::vector<TokenV::Word> parts;
         
         if (tokens.empty() || !tokens.front().template is<TokenV::Word>()) {
@@ -239,7 +239,6 @@ private:
             return std::nullopt;
         }
 
-        auto sourcePos = tokens.front().sourcePos;
         parts.push_back(tokens.front().template get<TokenV::Word>());
         popToken();
 
@@ -254,8 +253,19 @@ private:
             parts.push_back(tokens.front().template get<TokenV::Word>());
             popToken();
         }
+        return parts;
+    }
 
-        return std::make_unique<AstNode>(sourcePos, AstNodeV::TypeName{std::move(parts)});
+    std::optional<std::unique_ptr<AstNode>> parseTypeName() {
+        assert(!tokens.empty());
+        auto sourcePos = tokens.front().sourcePos;
+
+        auto parts = parseNamePath();
+        if (parts) {
+            return std::make_unique<AstNode>(sourcePos, AstNodeV::TypeName{std::move(*parts)});
+        } else {
+            return std::nullopt;
+        }
     }
 
     std::optional<std::vector<AstNode>> parseTemplateParams() {
@@ -401,6 +411,36 @@ private:
         }
     }
 
+    void parseImport() {
+        auto import = AstNodeV::TypeImport{};
+        size_t sourcePos = tokens.front().sourcePos;
+
+        popToken();
+        if (tokens.empty()) {
+            addError("Expected type name");
+            return;
+        }
+
+        auto parts = parseNamePath();
+        if (!parts) {
+            return;
+        }
+
+        import.nameParts = std::move(*parts);
+
+        //optional template params
+        if (!tokens.empty() && tokens.front().template is<TokenV::SquareBracket>() && tokens.front().template get<TokenV::SquareBracket>().open) {
+            auto templateParams = parseTemplateParams();
+            if (!templateParams) {
+                return;
+            }
+
+            import.templateParams = std::move(*templateParams);
+        }
+
+        ast.items.push_back(AstNode(sourcePos, std::move(import)));
+    }
+
     void parse() {
         while (!tokens.empty()) {
             while (tokens.front().template is<TokenV::Comment>()) {
@@ -413,6 +453,8 @@ private:
                 auto token = tokens.front().template get<TokenV::Word>();
                 if (token.s == "namespace") {
                     parseNamespace();
+                } else if (token.s == "import") {
+                    parseImport();
                 } else {
                     parseItem();
                 }

@@ -20,6 +20,15 @@ void appendTemplateString(const module::Message& message, std::string& s) {
     s.append(">\n");
 }
 
+std::string dumpItemName(const ItemName& name) {
+    std::string rtn = name.path[0];
+    for (size_t i = 1; i < name.path.size(); i++) {
+        rtn.append("::");
+        rtn.append(name.path[i]);
+    }
+    return rtn;
+}
+
 CppSource genCpp(const module::Module& module) {
     std::string header;
 
@@ -37,7 +46,7 @@ CppSource genCpp(const module::Module& module) {
                 }
             }
         } else if (dataType.template is<module::ErrorDataType>()) {
-            return "__ERROR__";
+            return "1__ERROR__";
         } else if (dataType.template is<module::TemplateParameter>()) {
             return dataType.template get<module::TemplateParameter>().name;
         } else if (dataType.template is<module::TemplateMemberType>()) {
@@ -52,7 +61,8 @@ CppSource genCpp(const module::Module& module) {
         }
 
         assert(dataType.template is<module::MessageHandle>());
-        return module.getMessage(dataType.template get<module::MessageHandle>()).name.name;
+        const ItemName& name = module.getMessage(dataType.template get<module::MessageHandle>()).name;
+        return dumpItemName(name);
     };
 
     header.append("#include <string>\n");
@@ -70,7 +80,7 @@ CppSource genCpp(const module::Module& module) {
             appendTemplateString(message, header);
         }
         header.append("struct ");
-        header.append(message.name.name);
+        header.append(dumpItemName(message.name));
         header.push_back(';');
         header.push_back('\n');
     }
@@ -84,7 +94,7 @@ CppSource genCpp(const module::Module& module) {
         }
 
         header.append("struct ");
-        header.append(message.name.name);
+        header.append(dumpItemName(message.name));
         header.append(" {\n");
         for (const auto& member: message.members) {
             header.append("    ");

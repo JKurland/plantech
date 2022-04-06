@@ -12,13 +12,16 @@
 
 namespace pt::msg_lang::module {
 
+size_t ItemNameHash::operator()(const ItemName& n) const {
+    size_t hash = 0;
+    for (const auto& name: n.path) {
+        hash ^= std::hash<std::string>{}(name);
+    }
+    return hash;
+}
+
 namespace {
 
-struct ItemNameHash {
-    size_t operator()(const ItemName& n) const {
-        return std::hash<std::string>{}(n.name);
-    }
-};
 
 struct ItemFromFile {
     const AstNode* itemNode;
@@ -33,6 +36,7 @@ public:
     Module build() {
         findMessageItems();
         fillInTemplateParameters();
+        processTypeImports();
         fillInMessageMembers();
         fillInMessageReponseTypes();
         processNamespaces();
@@ -105,12 +109,15 @@ private:
             for (const AstNode& node: file.ast.items) {
                 if (node.template is<AstNodeV::Item>()) {
                     const auto& item = node.template get<AstNodeV::Item>();
-                    ItemName name{std::string{item.name.s}};
+                    ItemName name{item.name.s};
+
+                    if (messageItems.contains(name)) {
+                        addError(Error{"Redefinition of message", getLocation(file.sourceFile, node.sourcePos)});
+                        continue;
+                    }
 
                     auto handle = mod.addMessage(Message{name, {}, std::nullopt});
-                    bool inserted = messageItems.emplace(name, ItemFromFile{&node, &file, handle}).second;
-                    assert(inserted);
-                    (void)inserted;
+                    messageItems.emplace(name, ItemFromFile{&node, &file, handle}).second;
                 }
             }
         }
@@ -132,6 +139,24 @@ private:
                     message.templateParams->push_back(
                         TemplateParameter{std::string(p.template get<AstNodeV::TemplateParam>().name.s)}
                     );
+                }
+            }
+        }
+    }
+
+    void processTypeImports() {
+        for (const AstFile& file: files) {
+            for (const AstNode& node: file.ast.items) {
+                if (node.template is<AstNodeV::TypeImport>()) {
+                    const auto& typeImport = node.template get<AstNodeV::TypeImport>();
+
+                    std::vector<std::string> path;
+                    for (const auto& p: typeImport.nameParts) {
+                        path.emplace_back(p.s);
+                    }
+                    ItemName name{path};
+
+                    mod.addImportedType(name);
                 }
             }
         }
@@ -227,6 +252,14 @@ std::optional<const Message*> Module::messageByName(const ItemName& name) const 
     }
 
     return std::nullopt;
+}
+
+bool Module::getImportedType(const ItemName& name) const {
+    return importedTypes_.contains(name);
+}
+
+void Module::addImportedType(const ItemName& name) {
+    importedTypes_.insert(name);
 }
 
 }

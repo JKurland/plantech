@@ -296,3 +296,15 @@ event E[T] {
     ASSERT_EQ(t.path.size(), 1);
     ASSERT_EQ(t.path[0], "Something");
 }
+
+TEST_F(TestModule, type_import_should_make_it_to_module) {
+    addFile(R"#(
+import myType
+import namespace::myType
+    )#");
+
+    auto m = compile();
+
+    ASSERT_TRUE(m.getImportedType(ItemName{"myType"}));
+    ASSERT_TRUE(m.getImportedType(ItemName{"namespace", "myType"}));
+}
