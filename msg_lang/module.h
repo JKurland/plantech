@@ -5,7 +5,7 @@
 #include <memory>
 #include <optional>
 #include <compare>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "my_variant.h"
 #include "error.h"
@@ -78,6 +78,8 @@ struct TemplateMemberType {
     auto operator<=>(const TemplateMemberType&) const = default;
 };
 
+
+
 using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType>;
 
 
@@ -94,6 +96,11 @@ struct Message {
     std::optional<std::vector<TemplateParameter>> templateParams;
 };
 
+struct ImportedType {
+    ItemName name;
+    std::optional<std::vector<TemplateParameter>> templateParams;
+};
+
 class Module {
 public:
     MessageHandle addMessage(Message message);
@@ -105,14 +112,14 @@ public:
     bool hasMessage(const ItemName& name) const;
     std::optional<const Message*> messageByName(const ItemName& name) const;
 
-    bool getImportedType(const ItemName& name) const;
-    void addImportedType(const ItemName& name);
+    std::optional<const ImportedType*> getImportedType(const ItemName& name) const;
+    void addImportedType(ImportedType type);
 
     // the namespace the messages in this module should be generated in
     std::optional<std::string> withNamespace;
     std::vector<Error> errors;
 private:
-    std::unordered_set<ItemName, ItemNameHash> importedTypes_;
+    std::unordered_map<ItemName, ImportedType, ItemNameHash> importedTypes_;
     std::vector<Message> messages_;
 };
 

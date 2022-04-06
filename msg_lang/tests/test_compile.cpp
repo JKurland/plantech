@@ -39,19 +39,22 @@ bool containsMember(const std::vector<module::MessageMember>& members, module::D
     return false;
 }
 
-bool containsTemplateParameter(const module::Message& message, const std::string& name) {
-    if (!message.templateParams) {
+struct containsTemplateParameter {
+    template<typename T>
+    bool operator()(const T& message, const std::string& name) {
+        if (!message.templateParams) {
+            return false;
+        }
+
+        for (const auto& param: *message.templateParams) {
+            if (param.name == name) {
+                return true;
+            }
+        }
+
         return false;
     }
-
-    for (const auto& param: *message.templateParams) {
-        if (param.name == name) {
-            return true;
-        }
-    }
-
-    return false;
-}
+};
 
 std::optional<size_t> memberIdx(const std::vector<module::MessageMember>& members, const std::string& name) {
     size_t i = 0;
@@ -274,7 +277,7 @@ request R[T] -> int {}
     auto message = m.messageByName(ItemName("R"));
 
     ASSERT_NE(message, std::nullopt);
-    ASSERT_PRED2(containsTemplateParameter, **message, "T");
+    ASSERT_PRED2(containsTemplateParameter{}, **message, "T");
 }
 
 TEST_F(TestModule, template_member_usable_as_type) {
@@ -307,4 +310,16 @@ import namespace::myType
 
     ASSERT_TRUE(m.getImportedType(ItemName{"myType"}));
     ASSERT_TRUE(m.getImportedType(ItemName{"namespace", "myType"}));
+}
+
+TEST_F(TestModule, type_import_template_params_get_kept) {
+    addFile(R"#(
+import myTemplateType[T]
+    )#");
+
+    auto m = compile();
+
+    auto type = m.getImportedType(ItemName{"myTemplateType"});
+    ASSERT_TRUE(type);
+    ASSERT_PRED2(containsTemplateParameter{}, **type, "T");
 }

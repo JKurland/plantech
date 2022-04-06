@@ -154,9 +154,25 @@ private:
                     for (const auto& p: typeImport.nameParts) {
                         path.emplace_back(p.s);
                     }
-                    ItemName name{path};
 
-                    mod.addImportedType(name);
+                    
+
+                    ImportedType type{
+                        .name = ItemName{path},
+                        .templateParams = std::nullopt
+                    };
+
+                    if (typeImport.templateParams) {
+                        type.templateParams = std::vector<TemplateParameter>();
+                        for (const auto& p: *typeImport.templateParams) {
+                            assert(p.template is<AstNodeV::TemplateParam>());
+                            type.templateParams->push_back(
+                                TemplateParameter{std::string(p.template get<AstNodeV::TemplateParam>().name.s)}
+                            );
+                        }
+                    }
+
+                    mod.addImportedType(type);
                 }
             }
         }
@@ -254,12 +270,17 @@ std::optional<const Message*> Module::messageByName(const ItemName& name) const 
     return std::nullopt;
 }
 
-bool Module::getImportedType(const ItemName& name) const {
-    return importedTypes_.contains(name);
+std::optional<const ImportedType*> Module::getImportedType(const ItemName& name) const {
+    auto it = importedTypes_.find(name);
+    if (it == importedTypes_.end()) {
+        return std::nullopt;
+    }
+    return &it->second;
 }
 
-void Module::addImportedType(const ItemName& name) {
-    importedTypes_.insert(name);
+void Module::addImportedType(ImportedType type) {
+    auto name = type.name;
+    importedTypes_.emplace(std::move(name), std::move(type));
 }
 
 }
