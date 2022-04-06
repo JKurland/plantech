@@ -37,6 +37,7 @@ public:
         findMessageItems();
         fillInTemplateParameters();
         processTypeImports();
+        checkForNameConflicts();
         fillInMessageMembers();
         fillInMessageReponseTypes();
         processNamespaces();
@@ -78,12 +79,22 @@ private:
                     }
                 }
 
-                auto it = messageItems.find(ItemName{std::string(s)});
-                if (it == messageItems.end()) {
-                    addError(Error{"Unknown type", getLocation(f, pos)});
-                    return ErrorDataType{};
+                // then imported types and defined messages, the order here doesn't
+                // matter since conflicts between imported types and defined messages
+                // aren't allowed
+                auto imported = mod.getImportedType(ItemName{s});
+                if (imported) {
+                    return DataType(**imported);
                 }
-                return DataType{it->second.handle};
+
+
+                auto it = messageItems.find(ItemName{std::string(s)});
+                if (it != messageItems.end()) {
+                    return DataType{it->second.handle};
+                }
+                
+                addError(Error{"Unknown type", getLocation(f, pos)});
+                return ErrorDataType{};
             }
         } else {
             auto templateParamName = typeName.nameParts.front().s;
@@ -222,6 +233,17 @@ private:
                         }
                     }
                 }
+            }
+        }
+    }
+
+    void checkForNameConflicts() {
+        for (const auto& item: messageItems) {
+            if (mod.getImportedType(item.first)) {
+                addError(Error{
+                    .message = "Imported type conflicts with message",
+                    .location = getLocation(item.second.file->sourceFile, item.second.itemNode->sourcePos)
+                });
             }
         }
     }

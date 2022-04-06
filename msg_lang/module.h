@@ -78,9 +78,14 @@ struct TemplateMemberType {
     auto operator<=>(const TemplateMemberType&) const = default;
 };
 
+struct ImportedType {
+    ItemName name;
+    std::optional<std::vector<TemplateParameter>> templateParams;
 
+    auto operator<=>(const ImportedType&) const = default;
+};
 
-using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType>;
+using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType, ImportedType>;
 
 
 struct MessageMember {
@@ -96,10 +101,6 @@ struct Message {
     std::optional<std::vector<TemplateParameter>> templateParams;
 };
 
-struct ImportedType {
-    ItemName name;
-    std::optional<std::vector<TemplateParameter>> templateParams;
-};
 
 class Module {
 public:

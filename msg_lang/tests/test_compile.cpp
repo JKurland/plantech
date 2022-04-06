@@ -323,3 +323,34 @@ import myTemplateType[T]
     ASSERT_TRUE(type);
     ASSERT_PRED2(containsTemplateParameter{}, **type, "T");
 }
+
+
+TEST_F(TestModule, should_allow_use_of_imported_type) {
+    addFile(R"#(
+import ImportedType
+
+event E {
+    ImportedType t
+}
+
+request R -> ImportedType {}
+    )#");
+
+    auto m = compile();
+
+    ASSERT_PRED1([](const module::Module& m){return m.errors.empty();}, m);
+}
+
+
+TEST_F(TestModule, should_error_when_import_conflicts_with_message) {
+    addFile(R"#(
+import Conflict
+
+event Conflict {}
+    )#");
+
+    auto m = compile();
+
+    ASSERT_FALSE(m.errors.empty());
+}
+

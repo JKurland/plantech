@@ -7,7 +7,7 @@ request greeting -> int {
     float f
 }
 
-event template[T] {
+event template1[T] {
     int i
 }
 
