@@ -1,4 +1,5 @@
 load(":msg_lang.bzl", "msg_lang_cpp")
+load("//build_defs:bzl_utils.bzl", "empty_file")
 
 cc_library(
     name = "msg_lang",
@@ -23,7 +24,21 @@ cc_test(
     copts = ["-Werror"],
 )
 
+
+# test compilation of a msg_lang module
+
+empty_file(
+    name = "test_hdr",
+    path = "test_empty.h"
+)
+
+cc_library(
+    name = "test_lib",
+    hdrs = [":test_hdr"]
+)
+
 msg_lang_cpp(
     name = "test_",
-    srcs = ["test.msg"],
+    srcs = ["tests/test.msg"],
+    deps = [":test_lib"]
 )

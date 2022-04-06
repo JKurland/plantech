@@ -14,10 +14,12 @@ struct Arguments {
     std::vector<std::filesystem::path> inputs;
     std::filesystem::path headerOut;
     std::filesystem::path sourceOut;
+    std::vector<std::string> includeHeaders;
 };
 
 constexpr std::string_view kUsage = R"##(
-Usage: msg_lang_c -h HEADER_OUTPUT -s SOURCE_OUTPUT INPUT_FILES...
+Usage: msg_lang_c -h HEADER_OUTPUT -s SOURCE_OUTPUT -i INCLUDE_HEADER INPUT_FILES...
+    -i    INCLUDE_HEADER      #include'd in HEADER_OUTPUT
 )##";
 
 // if string then string contains the error
@@ -26,6 +28,7 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
         input,
         headerOut,
         sourceOut,
+        includeHeader,
     };
 
     Arguments rtn;
@@ -39,6 +42,8 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
                     nextArg = NextArg::headerOut;
                 } else if (arg == "-s") {
                     nextArg = NextArg::sourceOut;
+                } else if (arg == "-i") {
+                    nextArg = NextArg::includeHeader;
                 } else {
                     rtn.inputs.push_back(arg);
                 }
@@ -51,6 +56,11 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
             }
             case NextArg::sourceOut: {
                 rtn.sourceOut = arg;
+                nextArg = NextArg::input;
+                break;
+            }
+            case NextArg::includeHeader: {
+                rtn.includeHeaders.push_back(std::string(arg));
                 nextArg = NextArg::input;
                 break;
             }
@@ -76,6 +86,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    assert(std::holds_alternative<Arguments>(args_result));
     const Arguments& args = std::get<Arguments>(args_result);
     const auto& inputs = args.inputs;
     const auto& headerOut = args.headerOut;
@@ -116,7 +127,7 @@ int main(int argc, char** argv) {
 
     module::Module mod = module::compile(asts);
 
-    CppSource output = genCpp(mod);
+    CppSource output = genCpp(mod, args.includeHeaders);
 
     {
         std::ofstream f(headerOut);

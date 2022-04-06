@@ -353,4 +353,3 @@ event Conflict {}
 
     ASSERT_FALSE(m.errors.empty());
 }
-

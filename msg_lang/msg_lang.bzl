@@ -8,11 +8,33 @@ CppSourceInfo = provider(
     },
 )
 
+def find_include_suffix(hdr, include_paths):
+    "Finds the suffix of hdr that is relative to a path in include_paths"
+    for path in include_paths.to_list():
+        if not path.endswith("/"):
+            dir_path = path + "/"
+        else:
+            dir_path = path
+ 
+        if hdr.startswith(dir_path):
+            return hdr[len(dir_path):]
+
+    fail("hdr {} did not begin with any include_paths {}".format(hdr, include_paths))
+
+
 def _impl(ctx):
     header = ctx.actions.declare_file(ctx.attr.header_name)
     source = ctx.actions.declare_file(rule_path(ctx) + ".cpp")
 
     args = ["-h", header.path, "-s", source.path]
+
+    if ctx.attr.deps:
+        for dep in ctx.attr.deps:
+            include_paths = dep[CcInfo].compilation_context.quote_includes 
+            for hdr in dep[CcInfo].compilation_context.direct_public_headers:
+                args.append("-i")
+                args.append(find_include_suffix(hdr.path, include_paths))
+
     for src in ctx.files.srcs:
         args.append(src.path)
 
@@ -35,6 +57,7 @@ _msg_lang_cpp_gen = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = [".msg"], allow_empty = False),
         "header_name": attr.string(),
+        "deps": attr.label_list(providers = [CcInfo]),
         "_msg_lang_c": attr.label(executable = True, cfg = "exec", default = "//msg_lang:msg_lang_c"),
     },
     provides = [CppSourceInfo],
@@ -64,11 +87,12 @@ _cpp_sources = rule(
     }
 )
 
-def msg_lang_cpp(name, srcs = [], **kwargs):
+def msg_lang_cpp(name, srcs = [], deps = None, **kwargs):
     _msg_lang_cpp_gen(
         name = "_{}_gen".format(name),
         header_name = "{}.h".format(name),
         srcs = srcs,
+        deps = deps,
     )
 
     _cpp_headers(
@@ -85,5 +109,6 @@ def msg_lang_cpp(name, srcs = [], **kwargs):
         name = name,
         srcs = [":_{}_sources".format(name)],
         hdrs = [":_{}_headers".format(name)],
+        deps = deps,
         **kwargs,
     )

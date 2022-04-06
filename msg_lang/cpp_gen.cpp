@@ -2,6 +2,8 @@
 
 #include "module.h"
 #include <iostream>
+#include <vector>
+#include <string>
 
 namespace pt::msg_lang {
 
@@ -29,7 +31,7 @@ std::string dumpItemName(const ItemName& name) {
     return rtn;
 }
 
-CppSource genCpp(const module::Module& module) {
+CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders) {
     std::string header;
 
     auto dumpDataType = [&](const module::DataType& dataType) -> std::string{
@@ -67,6 +69,12 @@ CppSource genCpp(const module::Module& module) {
 
     header.append("#include <string>\n");
     header.append("#include <cstdint>\n");
+
+    for (const auto& h: includeHeaders) {
+        header.append("#include \"");
+        header.append(h);
+        header.append("\"\n");
+    }
 
     if (module.withNamespace) {
         header.append("namespace ");
