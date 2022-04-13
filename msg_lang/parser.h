@@ -68,11 +68,12 @@ namespace AstNodeV {
 
     struct TypeName {
         std::vector<TokenV::Word> nameParts;
+        std::optional<std::vector<AstNode>> templateParams; // TypeName
     };
 
     struct TypeImport {
         std::vector<TokenV::Word> nameParts;
-        std::optional<std::vector<AstNode>> templateParams;
+        std::optional<std::vector<AstNode>> templateParams; // TemplateParam
     };
 }
 

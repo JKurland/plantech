@@ -353,3 +353,35 @@ event Conflict {}
 
     ASSERT_FALSE(m.errors.empty());
 }
+
+TEST_F(TestModule, should_parse_type_member_template_arguments) {
+    addFile(R"#(
+import S[T]
+
+event E {
+    S[int] s
+}
+    )#");
+
+    auto m = compile();
+
+    ASSERT_TRUE(m.errors.empty());
+
+    auto message = m.messageByName(ItemName{"E"});
+    ASSERT_TRUE(message);
+
+
+    std::optional<size_t> memberI = memberIdx((*message)->members, "s");
+    ASSERT_TRUE(memberI);
+
+    auto member = (*message)->members[*memberI];
+    ASSERT_TRUE(member.type.template is<module::TemplateInstance>());
+
+    auto instance = member.type.template get<module::TemplateInstance>();
+
+    ASSERT_TRUE(instance.template_->template is<module::ImportedType>());
+    ASSERT_EQ(instance.template_->template get<module::ImportedType>().name, ItemName("S"));
+    ASSERT_EQ(instance.args.size(), 1);
+    ASSERT_TRUE(instance.args.front().template is<module::BuiltinType>());
+    ASSERT_EQ(instance.args.front().template get<module::BuiltinType>(), module::BuiltinType::Int);
+}

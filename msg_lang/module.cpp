@@ -53,9 +53,9 @@ private:
         mod.errors.push_back(std::move(e));
     }
 
-    DataType parseDataType(AstNode& node, const Message& m, const SourceFile& f, size_t pos) {
+    DataType parseDataTypeName(const AstNode& node, const Message& m, const SourceFile& f, size_t pos) {
         assert(node.template is<AstNodeV::TypeName>());
-        auto typeName = node.template get<AstNodeV::TypeName>();
+        const auto& typeName = node.template get<AstNodeV::TypeName>();
 
         assert(!typeName.nameParts.empty());
         if (typeName.nameParts.size() == 1) {
@@ -112,6 +112,26 @@ private:
             }
             addError(Error{"No such template parameter, member types are only supported for template parameters", getLocation(f, pos)});
             return ErrorDataType{};
+        }
+    }
+
+    DataType parseDataType(const AstNode& node, const Message& m, const SourceFile& f, size_t pos) {
+        assert(node.template is<AstNodeV::TypeName>());
+        const auto& typeName = node.template get<AstNodeV::TypeName>();
+
+        if (typeName.templateParams) {
+            std::vector<DataType> args;
+
+            for (const auto& arg: *typeName.templateParams) {
+                args.push_back(parseDataType(arg, m, f, arg.sourcePos));
+            }
+
+            return module::TemplateInstance{
+                .template_ = Box(parseDataTypeName(node, m, f, pos)),
+                .args = std::move(args)
+            };
+        } else {
+            return parseDataTypeName(node, m, f, pos);
         }
     }
 

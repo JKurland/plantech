@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "my_variant.h"
+#include "box.h"
 #include "error.h"
 
 namespace pt::msg_lang {
@@ -40,6 +41,8 @@ namespace module {
 struct ItemNameHash {
     size_t operator()(const ItemName& n) const;
 };
+
+class DataType;
 
 enum class BuiltinType {
     Int,
@@ -83,9 +86,19 @@ struct ImportedType {
     std::optional<std::vector<TemplateParameter>> templateParams;
 
     auto operator<=>(const ImportedType&) const = default;
+    bool operator==(const ImportedType&) const = default;
 };
 
-using DataType = MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType, ImportedType>;
+struct TemplateInstance {
+    Box<DataType> template_;
+    std::vector<DataType> args;
+
+    auto operator<=>(const TemplateInstance&) const = default;
+};
+
+class DataType: public MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType, ImportedType, TemplateInstance> {
+    using MyVariant::MyVariant;
+};
 
 
 struct MessageMember {

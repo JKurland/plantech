@@ -261,11 +261,51 @@ private:
         auto sourcePos = tokens.front().sourcePos;
 
         auto parts = parseNamePath();
-        if (parts) {
-            return std::make_unique<AstNode>(sourcePos, AstNodeV::TypeName{std::move(*parts)});
-        } else {
+        if (!parts) {
             return std::nullopt;
         }
+
+        std::optional<std::vector<AstNode>> templateParams;
+        // optional template parameters
+        if (!tokens.empty() && tokens.front().template is<TokenV::SquareBracket>() && tokens.front().template get<TokenV::SquareBracket>().open) {
+            templateParams = std::vector<AstNode>();
+            popToken();
+
+            auto frontIsClosingBrace = [&]{
+                return tokens.front().template is<TokenV::SquareBracket>() && !tokens.front().template get<TokenV::SquareBracket>().open;
+            };
+
+
+            while (!tokens.empty() && !frontIsClosingBrace()) {
+                auto param = parseTypeName();
+                if (!param) {
+                    return std::nullopt;
+                }
+
+                templateParams->push_back(std::move(**param));
+
+                if (tokens.empty() || (!tokens.front().template is<TokenV::Comma>() && !frontIsClosingBrace())) {
+                    addError("Expected , or ]");
+                    return std::nullopt;
+                }
+
+                if (tokens.front().template is<TokenV::Comma>()) {
+                    popToken();
+                }
+            }
+
+            if (tokens.empty()) {
+                addError("Expected ]");
+                return std::nullopt;
+            }
+
+            popToken();
+        }
+
+        return std::make_unique<AstNode>(sourcePos, AstNodeV::TypeName{
+            .nameParts = std::move(*parts),
+            .templateParams = std::move(templateParams)
+        });
     }
 
     std::optional<std::vector<AstNode>> parseTemplateParams() {

@@ -26,3 +26,11 @@ request templateR[T] -> T {
 event templateE[T] {
     T::Something s
 }
+
+import Imported
+import ImportedTemplate[T]
+
+event usesImported {
+    Imported i
+    ImportedTemplate[int] j
+}

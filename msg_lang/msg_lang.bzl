@@ -19,7 +19,7 @@ def find_include_suffix(hdr, include_paths):
         if hdr.startswith(dir_path):
             return hdr[len(dir_path):]
 
-    fail("hdr {} did not begin with any include_paths {}".format(hdr, include_paths))
+    return hdr
 
 
 def _impl(ctx):

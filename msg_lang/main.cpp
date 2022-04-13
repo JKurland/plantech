@@ -124,8 +124,14 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-
     module::Module mod = module::compile(asts);
+
+    if (!mod.errors.empty()) {
+        for (const auto& error: mod.errors) {
+            std::cerr << formatError(error) << std::endl;
+        }
+        return 1;
+    }
 
     CppSource output = genCpp(mod, args.includeHeaders);
 
