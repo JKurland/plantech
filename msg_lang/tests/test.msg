@@ -39,3 +39,17 @@ event optional {
     option[int] i
     list[str] l
 }
+
+event C {
+    A a
+    B b
+}
+
+event A {
+
+}
+
+event B {
+    A a
+}
+
