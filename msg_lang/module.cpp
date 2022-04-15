@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <cassert>
 #include <iostream>
@@ -66,8 +67,17 @@ private:
             else if (s == "float") {
                 return BuiltinType::Float;
             }
+            else if (s == "double") {
+                return BuiltinType::Double;
+            }
             else if (s == "str") {
                 return BuiltinType::String;
+            }
+            else if (s == "list"){
+                return BuiltinType::List;
+            }
+            else if (s == "option") {
+                return BuiltinType::Option;
             }
             else {
                 // check the template params first, then the messages in messageItems
@@ -107,10 +117,19 @@ private:
                         }
                         return TemplateMemberType{p, std::move(parts)};
                     }
-
                 }
             }
-            addError(Error{"No such template parameter, member types are only supported for template parameters", getLocation(f, pos)});
+
+            std::vector<std::string> nameParts;
+            for (const auto& p: typeName.nameParts) {
+                nameParts.emplace_back(p.s);
+            }
+            auto imported = mod.getImportedType(ItemName(std::move(nameParts)));
+            if (imported) {
+                return DataType(**imported);
+            }
+
+            addError(Error{"No such template parameter, member types are only supported for template parameters and imported types", getLocation(f, pos)});
             return ErrorDataType{};
         }
     }
@@ -323,6 +342,79 @@ std::optional<const ImportedType*> Module::getImportedType(const ItemName& name)
 void Module::addImportedType(ImportedType type) {
     auto name = type.name;
     importedTypes_.emplace(std::move(name), std::move(type));
+}
+
+template<typename F>
+void forEachTypeDependencies(const DataType& type, F&& f) {
+    type.visit(
+        [&](const module::BuiltinType&) {},
+        [&](const module::MessageHandle& handle) {f(handle);},
+        [&](const module::TemplateParameter&) {},
+        [&](const module::ErrorDataType&) {},
+        [&](const module::TemplateMemberType&) {},
+        [&](const module::ImportedType&) {},
+        [&](const module::TemplateInstance& i) {
+            // lists don't create a dependency
+            if (i.template_->template is<BuiltinType>() && i.template_->template get<BuiltinType>() == BuiltinType::List) {
+                return;
+            }
+            forEachTypeDependencies(*i.template_, f);
+            for (const auto& t: i.args) {
+                forEachTypeDependencies(t, f);
+            }
+        }
+    );
+}
+
+std::vector<MessageHandle> Module::topologicalOrder() const {
+    std::vector<MessageHandle> rtn;
+
+    // edge from set member to index (from dependent to dependency)
+    std::vector<std::unordered_set<size_t>> edges;
+    edges.resize(messages_.size());
+
+    std::unordered_set<size_t> roots;
+
+
+    for (size_t i = 0; i < messages_.size(); i++) {
+        roots.insert(i);
+    }
+
+    size_t numEdgesRemaining = 0;
+    for (size_t i = 0; i < messages_.size(); i++) {
+        const auto& message = messages_[i];
+        for (const auto& member: message.members) {
+            forEachTypeDependencies(member.type, [&](const module::MessageHandle& h) {
+                auto r = edges[h.idx].insert(i);
+                roots.erase(h.idx);
+                if (r.second) {
+                    numEdgesRemaining++;
+                }
+            });
+        }
+    }
+
+    while (!roots.empty()) {
+        size_t root = *roots.begin();
+        roots.erase(root);
+        rtn.push_back(MessageHandle{root});
+
+        const auto& message = messages_[root];
+        for (const auto& member: message.members) {
+            forEachTypeDependencies(member.type, [&](const module::MessageHandle& h) {
+                size_t numRemoved = edges[h.idx].erase(root);
+                numEdgesRemaining -= numRemoved;
+
+                if (numRemoved > 0 && edges[h.idx].empty()) {
+                    roots.insert(h.idx);
+                }
+            });
+        }
+    }
+
+    assert(numEdgesRemaining == 0);
+
+    return rtn;
 }
 
 }

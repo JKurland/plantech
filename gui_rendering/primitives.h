@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gui/gui.h"
+#include "utils/empty.h"
 
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
@@ -50,7 +51,7 @@ public:
     // the points into pixel space.
     void addTriangles(const std::vector<glm::vec3>& points, glm::vec3 colour, const glm::mat4& transform, EventTargetHandle eventTargetHandle);
 
-    template<typename T, typename = std::enable_if_t<std::is_void_v<typename T::PosDataT>>>
+    template<typename T, typename = std::enable_if_t<std::is_same_v<typename T::PosDataT, Empty>>>
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle) {
         eventTargets.push_back(EventTarget{
             Gui::convertHandle(guiHandle),
@@ -59,7 +60,7 @@ public:
         return EventTargetHandle{eventTargets.size() - 1};
     }
 
-    template<typename T, typename = std::enable_if_t<!std::is_void_v<typename T::PosDataT>>>
+    template<typename T, typename = std::enable_if_t<!std::is_same_v<typename T::PosDataT, Empty>>>
     EventTargetHandle addEventTarget(const GuiHandle<T>& guiHandle, typename T::PosDataT posData) {
         eventTargets.push_back(EventTarget{
             Gui::convertHandle(guiHandle),

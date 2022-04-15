@@ -7,6 +7,7 @@
 
 namespace pt::msg_lang {
 
+
 void appendTemplateString(const module::Message& message, std::string& s) {
     s.append("template<");
     bool skipComma = true;
@@ -32,53 +33,64 @@ std::string dumpItemName(const ItemName& name) {
 }
 
 std::string dumpDataType(const module::DataType& dataType, const module::Module& module) {
-    if (dataType.template is<module::BuiltinType>()) {
-        switch (dataType.template get<module::BuiltinType>()) {
-            case module::BuiltinType::Int: {
-                return "std::int32_t";
+    return dataType.visit(
+        [&](const module::BuiltinType& b) -> std::string {
+            switch (b) {
+                case module::BuiltinType::Int: {
+                    return "std::int32_t";
+                }
+                case module::BuiltinType::Float: {
+                    return "float";
+                }
+                case module::BuiltinType::String: {
+                    return "std::string";
+                }
+                case module::BuiltinType::List: {
+                    return "std::vector";
+                }
+                case module::BuiltinType::Option: {
+                    return "std::optional";
+                }
+                case module::BuiltinType::Double: {
+                    return "double";
+                }
             }
-            case module::BuiltinType::Float: {
-                return "float";
+            // unreachable
+            assert(false);
+            return "2__ERROR__";
+        },
+        [&](const module::ErrorDataType&) -> std::string {return "1__ERROR__";},
+        [&](const module::TemplateParameter& p) -> std::string {return p.name;},
+        [&](const module::TemplateMemberType& t) {
+            std::string rtn = "typename ";
+            rtn.append(t.param.name);
+            for (const auto& p: t.path) {
+                rtn.append("::");
+                rtn.append(p);
             }
-            case module::BuiltinType::String: {
-                return "std::string";
+            return rtn;
+        },
+        [&](const module::ImportedType& i) -> std::string {return dumpItemName(i.name);},
+        [&](const module::TemplateInstance& i) {
+            std::string rtn;
+            const auto& templateInstance = dataType.template get<module::TemplateInstance>();
+            rtn.append(dumpDataType(*templateInstance.template_, module));
+            rtn.push_back('<');
+            bool skipComma = true;
+            for (const auto& arg: templateInstance.args) {
+                if (!skipComma) {
+                    rtn.append(", ");
+                }
+                skipComma = false;
+                rtn.append(dumpDataType(arg, module));
             }
+            rtn.push_back('>');
+            return rtn;
+        },
+        [&](const module::MessageHandle& h) {
+            return dumpItemName(module.getMessage(h).name);
         }
-    } else if (dataType.template is<module::ErrorDataType>()) {
-        return "1__ERROR__";
-    } else if (dataType.template is<module::TemplateParameter>()) {
-        return dataType.template get<module::TemplateParameter>().name;
-    } else if (dataType.template is<module::TemplateMemberType>()) {
-        const auto& t = dataType.template get<module::TemplateMemberType>();
-        std::string rtn = "typename ";
-        rtn.append(t.param.name);
-        for (const auto& p: t.path) {
-            rtn.append("::");
-            rtn.append(p);
-        }
-        return rtn;
-    } else if (dataType.template is<module::ImportedType>()) {
-        return dumpItemName(dataType.template get<module::ImportedType>().name);
-    } else if (dataType.template is<module::TemplateInstance>()) {
-        std::string rtn;
-        const auto& templateInstance = dataType.template get<module::TemplateInstance>();
-        rtn.append(dumpDataType(*templateInstance.template_, module));
-        rtn.push_back('<');
-        bool skipComma = true;
-        for (const auto& arg: templateInstance.args) {
-            if (!skipComma) {
-                rtn.append(", ");
-            }
-            skipComma = false;
-            rtn.append(dumpDataType(arg, module));
-        }
-        rtn.push_back('>');
-        return rtn;
-    }
-
-    assert(dataType.template is<module::MessageHandle>());
-    const ItemName& name = module.getMessage(dataType.template get<module::MessageHandle>()).name;
-    return dumpItemName(name);
+    );
 };
 
 CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders) {
@@ -87,6 +99,8 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
 
     header.append("#include <string>\n");
     header.append("#include <cstdint>\n");
+    header.append("#include <vector>\n");
+    header.append("#include <optional>\n");
 
     for (const auto& h: includeHeaders) {
         header.append("#include \"");
@@ -114,7 +128,9 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
     header.push_back('\n');
 
     // now define everything
-    for (const auto& message: module.messages()) {
+    std::vector<module::MessageHandle> messages = module.topologicalOrder();
+    for (auto it = messages.rbegin(); it != messages.rend(); it++) {
+        const auto& message = module.getMessage(*it);
         if (message.templateParams) {
             appendTemplateString(message, header);
         }

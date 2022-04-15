@@ -9,34 +9,6 @@
 
 namespace pt {
 
-struct AddButton {
-    using ResponseT = GuiHandle<Button>;
-};
-
-template<typename T>
-struct AddGuiElement {
-    using ResponseT = GuiHandle<T>;
-
-    // if nullopt parent is gui.root()
-    std::optional<Gui::Handle> parent;
-    T element;
-};
-
-template<typename ElemT, typename = void>
-struct GuiElementMouseButton {};
-
-template<typename ElemT>
-struct GuiElementMouseButton<ElemT, std::enable_if_t<std::is_void_v<typename ElemT::PosDataT>>> {
-    MouseButton mouseEvent;
-    GuiHandle<ElemT> element;
-};
-
-template<typename ElemT>
-struct GuiElementMouseButton<ElemT, std::enable_if_t<!std::is_void_v<typename ElemT::PosDataT>>> {
-    MouseButton mouseEvent;
-    GuiHandle<ElemT> element;
-    typename ElemT::PosDataT posData;
-};
 
 class GuiManager {
 public:

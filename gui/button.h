@@ -1,12 +1,13 @@
 #pragma once
 
 #include "gui/element.h"
+#include "utils/empty.h"
 
 namespace pt {
 
 class Button: public GuiElement {
 public:
-    using PosDataT = void;
+    using PosDataT = Empty;
 
     // is the button in the process of being clicked. So button down but not yet button up.
     bool clicked = false;

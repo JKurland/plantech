@@ -483,8 +483,9 @@ private:
 
     void parse() {
         while (!tokens.empty()) {
-            while (tokens.front().template is<TokenV::Comment>()) {
+            if (tokens.front().template is<TokenV::Comment>()) {
                 popToken();
+                continue;                
             }
 
             thisParseSuccessful = true;

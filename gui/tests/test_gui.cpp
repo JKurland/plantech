@@ -3,16 +3,18 @@
 #include <glm/glm.hpp>
 #include "gui/gui.h"
 
+#include "utils/empty.h"
+
 using namespace pt;
 
 struct IntElement: public GuiElement {
-    using PosDataT = void;
+    using PosDataT = Empty;
     IntElement(int x): x(x) {}
     int x;
 };
 
 struct TargetElement: public GuiElement {
-    using PosDataT = void;
+    using PosDataT = Empty;
     TargetElement(int target): target(target) {}
     int target;
 };

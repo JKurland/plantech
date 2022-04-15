@@ -10,6 +10,7 @@
 #include <functional>
 
 #include "utils/template_meta.h"
+#include "utils/empty.h"
 #include "gui/element.h"
 #include "gui/button.h"
 #include "gui/translate.h"
@@ -19,7 +20,7 @@ namespace pt {
 
 class GuiRoot: public GuiElement {
 public:
-    using PosDataT = void;
+    using PosDataT = Empty;
 };
 
 template<typename...Ts>

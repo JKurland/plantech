@@ -34,3 +34,8 @@ event usesImported {
     Imported i
     ImportedTemplate[int] j
 }
+
+event optional {
+    option[int] i
+    list[str] l
+}
