@@ -373,20 +373,12 @@ std::vector<MessageHandle> Module::topologicalOrder() const {
     std::vector<std::unordered_set<size_t>> edges;
     edges.resize(messages_.size());
 
-    std::unordered_set<size_t> roots;
-
-
-    for (size_t i = 0; i < messages_.size(); i++) {
-        roots.insert(i);
-    }
-
     size_t numEdgesRemaining = 0;
     for (size_t i = 0; i < messages_.size(); i++) {
         const auto& message = messages_[i];
         for (const auto& member: message.members) {
             forEachTypeDependencies(member.type, [&](const module::MessageHandle& h) {
                 auto r = edges[h.idx].insert(i);
-                roots.erase(h.idx);
                 if (r.second) {
                     numEdgesRemaining++;
                 }
@@ -394,9 +386,16 @@ std::vector<MessageHandle> Module::topologicalOrder() const {
         }
     }
 
+    std::vector<size_t> roots;
+    for (size_t i = 0; i < edges.size(); i++) {
+        if (edges[i].empty()) {
+            roots.push_back(i);
+        }
+    }
+
     while (!roots.empty()) {
-        size_t root = *roots.begin();
-        roots.erase(root);
+        size_t root = roots.back();
+        roots.pop_back();
         rtn.push_back(MessageHandle{root});
 
         const auto& message = messages_[root];
@@ -406,7 +405,7 @@ std::vector<MessageHandle> Module::topologicalOrder() const {
                 numEdgesRemaining -= numRemoved;
 
                 if (numRemoved > 0 && edges[h.idx].empty()) {
-                    roots.insert(h.idx);
+                    roots.push_back(h.idx);
                 }
             });
         }
