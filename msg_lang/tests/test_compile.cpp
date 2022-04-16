@@ -385,3 +385,72 @@ event E {
     ASSERT_TRUE(instance.args.front().template is<module::BuiltinType>());
     ASSERT_EQ(instance.args.front().template get<module::BuiltinType>(), module::BuiltinType::Int);
 }
+
+TEST_F(TestModule, should_detect_cyclic_dependency) {
+    addFile(R"#(
+event A {
+    B b
+}
+
+event B {
+    A a
+}
+    )#");
+
+    auto m = compile();
+    ASSERT_FALSE(m.errors.empty());
+}
+
+TEST_F(TestModule, should_detect_cyclic_dependency2) {
+    addFile(R"#(
+event A {
+    B b
+}
+
+event B {
+    A a
+}
+
+event C {
+    B b
+}
+    )#");
+
+    auto m = compile();
+    ASSERT_FALSE(m.errors.empty());
+}
+
+TEST_F(TestModule, should_detect_cyclic_dependency3) {
+    addFile(R"#(
+event A {
+    B b
+}
+
+event B {
+    A a
+}
+
+event C {
+}
+    )#");
+
+    auto m = compile();
+    ASSERT_FALSE(m.errors.empty());
+}
+
+TEST_F(TestModule, should_allow_cyclic_dependency_with_lists) {
+    addFile(R"#(
+event A {
+    B b
+}
+
+event B {
+    list[A] a
+}
+    )#");
+
+    auto m = compile();
+    ASSERT_TRUE(m.errors.empty());
+}
+
+

@@ -35,6 +35,8 @@ struct ItemName {
 
     std::vector<std::string> path;
     auto operator<=>(const ItemName&) const = default;
+
+    std::string joinPath(const std::string& sep) const;
 };
 
 namespace module {
@@ -111,6 +113,8 @@ struct MessageMember {
 
 
 struct Message {
+    size_t sourcePos;
+    const SourceFile* sourceFile;
     ItemName name;
     std::vector<MessageMember> members;
     std::optional<DataType> expectedResponse;
@@ -135,6 +139,8 @@ public:
     // gets message handles in topological order, so that no message in the returned
     // vector depends on any other message that comes before it in the vector
     std::vector<MessageHandle> topologicalOrder() const;
+    std::optional<std::vector<MessageHandle>> findTopologicalCycle() const;
+    std::vector<MessageHandle> dependencies(MessageHandle handle) const;
 
     // the namespace the messages in this module should be generated in
     std::optional<std::string> withNamespace;

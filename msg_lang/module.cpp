@@ -11,7 +11,23 @@
 
 #include "parser.h"
 
+namespace pt::msg_lang {
+std::string ItemName::joinPath(const std::string& sep) const {
+    std::string rtn;
+    bool addSep = false;
+    for (const auto& s: path) {
+        if (addSep) {
+            rtn.append(sep);
+        }
+        addSep = true;
+        rtn.append(s);
+    }
+    return rtn;
+}
+}
+
 namespace pt::msg_lang::module {
+
 
 size_t ItemNameHash::operator()(const ItemName& n) const {
     size_t hash = 0;
@@ -22,6 +38,28 @@ size_t ItemNameHash::operator()(const ItemName& n) const {
 }
 
 namespace {
+
+template<typename F>
+void forEachTypeDependencies(const DataType& type, F&& f) {
+    type.visit(
+        [&](const module::BuiltinType&) {},
+        [&](const module::MessageHandle& handle) {f(handle);},
+        [&](const module::TemplateParameter&) {},
+        [&](const module::ErrorDataType&) {},
+        [&](const module::TemplateMemberType&) {},
+        [&](const module::ImportedType&) {},
+        [&](const module::TemplateInstance& i) {
+            // lists don't create a dependency
+            if (i.template_->template is<BuiltinType>() && i.template_->template get<BuiltinType>() == BuiltinType::List) {
+                return;
+            }
+            forEachTypeDependencies(*i.template_, f);
+            for (const auto& t: i.args) {
+                forEachTypeDependencies(t, f);
+            }
+        }
+    );
+}
 
 
 struct ItemFromFile {
@@ -42,6 +80,7 @@ public:
         fillInMessageMembers();
         fillInMessageReponseTypes();
         processNamespaces();
+        checkForCyclicTypeDependencies();
         return mod;
     }
 
@@ -166,7 +205,7 @@ private:
                         continue;
                     }
 
-                    auto handle = mod.addMessage(Message{name, {}, std::nullopt});
+                    auto handle = mod.addMessage(Message{node.sourcePos, &file.sourceFile, name, {}, std::nullopt});
                     messageItems.emplace(name, ItemFromFile{&node, &file, handle}).second;
                 }
             }
@@ -286,6 +325,33 @@ private:
             }
         }
     }
+
+    void checkForCyclicTypeDependencies() {
+        auto cycle = mod.findTopologicalCycle();
+
+        if (!cycle) {
+            return;
+        }
+
+
+        assert(!cycle->empty());
+
+        std::string cycleString;
+        bool addArrow = false;
+        for (const MessageHandle& h: *cycle) {
+            if (addArrow) {
+                cycleString.append(" -> ");
+            }
+            addArrow = true;
+            cycleString.append(mod.getMessage(h).name.joinPath("::"));
+        }
+
+        const auto& message = mod.getMessage(cycle->front());
+        addError(Error{
+            .message = "Message cycle: " + cycleString,
+            .location = getLocation(*message.sourceFile, message.sourcePos)
+        });
+    }
 };
 
 }
@@ -344,26 +410,108 @@ void Module::addImportedType(ImportedType type) {
     importedTypes_.emplace(std::move(name), std::move(type));
 }
 
-template<typename F>
-void forEachTypeDependencies(const DataType& type, F&& f) {
-    type.visit(
-        [&](const module::BuiltinType&) {},
-        [&](const module::MessageHandle& handle) {f(handle);},
-        [&](const module::TemplateParameter&) {},
-        [&](const module::ErrorDataType&) {},
-        [&](const module::TemplateMemberType&) {},
-        [&](const module::ImportedType&) {},
-        [&](const module::TemplateInstance& i) {
-            // lists don't create a dependency
-            if (i.template_->template is<BuiltinType>() && i.template_->template get<BuiltinType>() == BuiltinType::List) {
-                return;
+std::vector<MessageHandle> Module::dependencies(MessageHandle handle) const {
+    std::unordered_set<size_t> deps;
+    for (const auto& member: getMessage(handle).members) {
+        forEachTypeDependencies(member.type, [&](const module::MessageHandle& h) {
+            deps.insert(h.idx);
+        });
+    }
+
+    std::vector<MessageHandle> rtn;
+    for (size_t dep: deps) {
+        rtn.push_back(MessageHandle(dep));
+    }
+    return rtn;
+}
+
+std::optional<std::vector<MessageHandle>> Module::findTopologicalCycle() const {
+    std::vector<bool> hasDep;
+    hasDep.resize(messages_.size());
+
+    for (const auto& message: messages_) {
+        for (const auto& member: message.members) {
+            forEachTypeDependencies(member.type, [&](const module::MessageHandle& h) {
+                hasDep[h.idx] = true;
+            });
+        }
+    }
+
+    std::vector<size_t> roots;
+    for (size_t i = 0; i < hasDep.size(); i++) {
+        if (!hasDep[i]) {
+            roots.push_back(i);
+        }
+    }
+
+    std::vector<bool> inStack;
+    inStack.resize(messages_.size());
+
+    std::vector<bool> visited;
+    visited.resize(messages_.size());
+    auto checkFrom = [&](size_t root) -> std::optional<std::vector<MessageHandle>> {
+        std::vector<MessageHandle> toCheck;
+        std::vector<std::pair<MessageHandle, size_t>> stack;
+
+        toCheck.push_back(MessageHandle{root});
+
+        while(!toCheck.empty()) {
+            MessageHandle thisNode = toCheck.back();
+            visited[thisNode.idx] = true;
+            toCheck.pop_back();
+            if (!stack.empty()) {
+                stack.back().second--;
             }
-            forEachTypeDependencies(*i.template_, f);
-            for (const auto& t: i.args) {
-                forEachTypeDependencies(t, f);
+
+            if (!inStack[thisNode.idx]) {
+                std::vector<MessageHandle> deps = dependencies(thisNode);
+
+                if (!deps.empty()) {
+                    stack.emplace_back(thisNode, deps.size());
+                    inStack[thisNode.idx] = true;
+                    toCheck.insert(toCheck.end(), deps.begin(), deps.end());
+                }
+            } else {
+                std::vector<MessageHandle> cycle;
+                bool foundStart = false;
+                for (const auto& frame: stack) {
+                    if (frame.first == thisNode) {
+                        foundStart = true;
+                    }
+
+                    if (foundStart) {
+                        cycle.push_back(frame.first);
+                    }
+                }
+                return cycle;
+            }
+
+            while (!stack.empty() && stack.back().second == 0) {
+                inStack[stack.back().first.idx] = false;
+                stack.pop_back();
             }
         }
-    );
+        assert(stack.empty());
+        return std::nullopt;
+    };
+
+    for (size_t root: roots) {
+        auto res = checkFrom(root);
+        if (res) {
+            return res;
+        }
+    }
+
+    for (size_t root = 0; root < messages_.size(); root++) {
+        if (!visited[root]) {
+            auto res = checkFrom(root);
+            if (res) {
+                return res;
+            }
+        }
+    }
+
+    return std::nullopt;
 }
 
 std::vector<MessageHandle> Module::topologicalOrder() const {
