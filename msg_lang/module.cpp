@@ -81,6 +81,7 @@ public:
         fillInMessageReponseTypes();
         processNamespaces();
         checkForCyclicTypeDependencies();
+        checkNumTemplateArguments();
         return mod;
     }
 
@@ -98,32 +99,36 @@ private:
         const auto& typeName = node.template get<AstNodeV::TypeName>();
 
         assert(!typeName.nameParts.empty());
+        auto wrap = [&](auto inner){
+            return DataType(pos, f, std::move(inner));
+        };
+
         if (typeName.nameParts.size() == 1) {
             std::string_view s = typeName.nameParts[0].s;
             if (s == "int") {
-                return BuiltinType::Int;
+                return wrap(BuiltinType::Int);
             }
             else if (s == "float") {
-                return BuiltinType::Float;
+                return wrap(BuiltinType::Float);
             }
             else if (s == "double") {
-                return BuiltinType::Double;
+                return wrap(BuiltinType::Double);
             }
             else if (s == "str") {
-                return BuiltinType::String;
+                return wrap(BuiltinType::String);
             }
             else if (s == "list"){
-                return BuiltinType::List;
+                return wrap(BuiltinType::List);
             }
             else if (s == "option") {
-                return BuiltinType::Option;
+                return wrap(BuiltinType::Option);
             }
             else {
                 // check the template params first, then the messages in messageItems
                 if (m.templateParams) {
                     for (const auto& p: *m.templateParams) {
                         if (p.name == s) {
-                            return p;
+                            return wrap(p);
                         }
                     }
                 }
@@ -133,17 +138,17 @@ private:
                 // aren't allowed
                 auto imported = mod.getImportedType(ItemName{s});
                 if (imported) {
-                    return DataType(**imported);
+                    return wrap(**imported);
                 }
 
 
                 auto it = messageItems.find(ItemName{std::string(s)});
                 if (it != messageItems.end()) {
-                    return DataType{it->second.handle};
+                    return wrap(it->second.handle);
                 }
                 
                 addError(Error{"Unknown type", getLocation(f, pos)});
-                return ErrorDataType{};
+                return wrap(ErrorDataType{});
             }
         } else {
             auto templateParamName = typeName.nameParts.front().s;
@@ -154,7 +159,7 @@ private:
                         for (size_t i = 1; i < typeName.nameParts.size(); i++) {
                             parts.emplace_back(typeName.nameParts[i].s);
                         }
-                        return TemplateMemberType{p, std::move(parts)};
+                        return wrap(TemplateMemberType{p, std::move(parts)});
                     }
                 }
             }
@@ -165,11 +170,11 @@ private:
             }
             auto imported = mod.getImportedType(ItemName(std::move(nameParts)));
             if (imported) {
-                return DataType(**imported);
+                return wrap(**imported);
             }
 
             addError(Error{"No such template parameter, member types are only supported for template parameters and imported types", getLocation(f, pos)});
-            return ErrorDataType{};
+            return wrap(ErrorDataType{});
         }
     }
 
@@ -184,10 +189,10 @@ private:
                 args.push_back(parseDataType(arg, m, f, arg.sourcePos));
             }
 
-            return module::TemplateInstance{
+            return DataType(pos, f, module::TemplateInstance{
                 .template_ = Box(parseDataTypeName(node, m, f, pos)),
                 .args = std::move(args)
-            };
+            });
         } else {
             return parseDataTypeName(node, m, f, pos);
         }
@@ -352,6 +357,100 @@ private:
             .location = getLocation(*message.sourceFile, message.sourcePos)
         });
     }
+
+    std::optional<size_t> expectedNumTemplateArgs(const DataType& dataType) {
+        return dataType.visit(
+            [](const BuiltinType& b) -> std::optional<size_t> {
+                switch (b) {
+                    case BuiltinType::Double:
+                    case BuiltinType::Float:
+                    case BuiltinType::Int:
+                    case BuiltinType::String:
+                        return std::nullopt;
+                    case BuiltinType::List:
+                    case BuiltinType::Option:
+                        return 1;
+                }
+                return std::nullopt;
+            },
+            [&](const MessageHandle& h) -> std::optional<size_t> {
+                const auto& templateParams = mod.getMessage(h).templateParams;
+                if (templateParams) {
+                    return templateParams->size();
+                } else {
+                    return std::nullopt;
+                }
+            },
+            [](const ImportedType& i) -> std::optional<size_t> {
+                if (i.templateParams) {
+                    return i.templateParams->size();
+                } else {
+                    return std::nullopt;
+                }
+            },
+            [&](const TemplateInstance& instance) -> std::optional<size_t> {
+                assert(!instance.template_->template is<TemplateInstance>());
+                return expectedNumTemplateArgs(*instance.template_);
+            },
+            [](const TemplateParameter&) -> std::optional<size_t> {return std::nullopt;},
+            [](const ErrorDataType&) -> std::optional<size_t> {return std::nullopt;},
+            [](const TemplateMemberType&) -> std::optional<size_t> {return std::nullopt;}
+        );
+    }
+
+    std::optional<size_t> actualNumTemplateArgs(const DataType& dataType) {
+        return dataType.visit(
+            [](const BuiltinType& b) -> std::optional<size_t> {return std::nullopt;},
+            [](const MessageHandle& h) -> std::optional<size_t> {return std::nullopt;},
+            [](const TemplateParameter&) -> std::optional<size_t> {return std::nullopt;},
+            [](const ErrorDataType&) -> std::optional<size_t> {return std::nullopt;},
+            [](const TemplateMemberType&) -> std::optional<size_t> {return std::nullopt;},
+            [](const ImportedType& i) -> std::optional<size_t> {return std::nullopt;},
+            [](const TemplateInstance& instance) -> std::optional<size_t> {return instance.args.size();}
+        );
+    }
+
+    void checkNumTemplateArgumentsForDataType(const DataType& dataType) {
+        auto expected = expectedNumTemplateArgs(dataType);
+        auto actual = actualNumTemplateArgs(dataType);
+
+        if (actual != expected) {
+            const std::string expectedMessage = [&]() -> std::string {
+                if (expected) {
+                    return "Expected " + std::to_string(*expected) + " template arguments.";
+                } else {
+                    return "Is not a template.";
+                }
+            }();
+
+            const std::string actualMessage = [&]() -> std::string {
+                if (actual) {
+                    return "Got " + std::to_string(*actual) + " template arugments.";
+                } else {
+                    return "Got no template arguments";
+                }
+            }();
+
+            addError(Error{
+                .message = expectedMessage + actualMessage,
+                .location = dataType.sourceLocation()
+            });
+        }  
+    }
+
+    void checkNumTemplateArguments() {
+        for (const auto& item: messageItems) {
+            const auto& message = mod.getMessage(item.second.handle);
+
+            if (message.expectedResponse) {
+                checkNumTemplateArgumentsForDataType(*message.expectedResponse);
+            }
+
+            for (const auto& member: message.members) {
+                checkNumTemplateArgumentsForDataType(member.type);
+            }
+        }
+    }
 };
 
 }
@@ -483,6 +582,7 @@ std::optional<std::vector<MessageHandle>> Module::findTopologicalCycle() const {
                         cycle.push_back(frame.first);
                     }
                 }
+                cycle.push_back(thisNode);
                 return cycle;
             }
 

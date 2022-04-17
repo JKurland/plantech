@@ -101,8 +101,28 @@ struct TemplateInstance {
     auto operator<=>(const TemplateInstance&) const = default;
 };
 
-class DataType: public MyVariant<BuiltinType, MessageHandle, TemplateParameter, ErrorDataType, TemplateMemberType, ImportedType, TemplateInstance> {
-    using MyVariant::MyVariant;
+class DataType: public MyVariant<
+    BuiltinType,
+    MessageHandle,
+    TemplateParameter,
+    ErrorDataType,
+    TemplateMemberType,
+    ImportedType,
+    TemplateInstance
+> {
+public:
+    template<typename...Ts>
+    DataType(size_t sourcePos, const SourceFile& sourceFile, Ts&&...args): MyVariant(std::forward<Ts>(args)...), sourcePos(sourcePos), sourceFile(&sourceFile) {}
+
+    SourceLocation sourceLocation() const {
+        return getLocation(*sourceFile, sourcePos);
+    }
+
+    using Base = MyVariant;
+private:
+
+    size_t sourcePos;
+    const SourceFile* sourceFile;
 };
 
 

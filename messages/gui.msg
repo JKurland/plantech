@@ -14,4 +14,3 @@ event GuiElementMouseButton[ElemT] {
     GuiHandle[ElemT] element
     ElemT::PosDataT posData
 }
-

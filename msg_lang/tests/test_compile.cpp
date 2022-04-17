@@ -28,9 +28,14 @@ protected:
 
         return module::compile(asts);
     }
+
+    void assertCompileFails() {
+        auto m = compile();
+        ASSERT_FALSE(m.errors.empty());
+    }
 };
 
-bool containsMember(const std::vector<module::MessageMember>& members, module::DataType type, const std::string& name) {
+bool containsMember(const std::vector<module::MessageMember>& members, module::DataType::Base type, const std::string& name) {
     for (const auto& member: members) {
         if (member.name == name && member.type == type) {
             return true;
@@ -453,4 +458,98 @@ event B {
     ASSERT_TRUE(m.errors.empty());
 }
 
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args) {
+    addFile(R"#(
+event E[T] {}
 
+event S {
+    E e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args2) {
+    addFile(R"#(
+event E[T] {}
+
+event S {
+    E[int, int] e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args3) {
+    addFile(R"#(
+import E[T]
+
+event S {
+    E[int, int] e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args4) {
+    addFile(R"#(
+import E[T]
+
+event S {
+    E e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args5) {
+    addFile(R"#(
+import E
+
+event S {
+    E[int] e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args6) {
+    addFile(R"#(
+import A::E
+
+event S {
+    A::E[int] e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args7) {
+    addFile(R"#(
+import A::E[T]
+
+event S {
+    A::E e
+}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_disallow_wrong_number_of_template_args8) {
+    addFile(R"#(
+import A::E[T]
+
+event S {
+    A::E[int, int] e
+}
+    )#");
+
+    assertCompileFails();
+}
