@@ -425,9 +425,9 @@ private:
 
             const std::string actualMessage = [&]() -> std::string {
                 if (actual) {
-                    return "Got " + std::to_string(*actual) + " template arugments.";
+                    return " Got " + std::to_string(*actual) + " template arugments.";
                 } else {
-                    return "Got no template arguments";
+                    return " Got no template arguments";
                 }
             }();
 
