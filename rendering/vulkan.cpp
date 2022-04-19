@@ -18,21 +18,21 @@ namespace pt {
 
 using namespace vulkan::detail;
 
-void VulkanRendering::initVulkan() {
+void VulkanRendering::initVulkan(const Extent2D& framebufferSize) {
     createInstance();
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
-    createSwapChain();
+    createSwapChain(framebufferSize);
     createSyncObjects();
     commandPool = createCommandPool();
 }
 
-void VulkanRendering::recreateSwapChain() {
+void VulkanRendering::recreateSwapChain(const Extent2D& framebufferSize) {
     vkDeviceWaitIdle(device);
 
     cleanupSwapChain();
-    createSwapChain();
+    createSwapChain(framebufferSize);
     newSwapChain = true;
 }
 
@@ -229,16 +229,13 @@ VkPresentModeKHR VulkanRendering::chooseSwapPresentMode(const std::vector<VkPres
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D VulkanRendering::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D VulkanRendering::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Extent2D& framebufferSize) {
     if (capabilities.currentExtent.width != UINT32_MAX) {
         return capabilities.currentExtent;
     } else {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
         VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
+            static_cast<uint32_t>(framebufferSize.width),
+            static_cast<uint32_t>(framebufferSize.height)
         };
 
         actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -248,12 +245,12 @@ VkExtent2D VulkanRendering::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& cap
     }
 }
 
-void VulkanRendering::createSwapChain() {
+void VulkanRendering::createSwapChain(const Extent2D& framebufferSize) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities, framebufferSize);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
@@ -332,14 +329,14 @@ void VulkanRendering::createSyncObjects() {
 }
 
 
-void VulkanRendering::drawFrame() {
+void VulkanRendering::drawFrame(const Extent2D& framebufferSize) {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        recreateSwapChain();
+        recreateSwapChain(framebufferSize);
         return;
     } else if (result == VK_NOT_READY) {
         return;
@@ -395,7 +392,7 @@ void VulkanRendering::drawFrame() {
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
         framebufferResized = false;
-        recreateSwapChain();
+        recreateSwapChain(framebufferSize);
     } else if (result != VK_SUCCESS) {
         assert(false);
     }

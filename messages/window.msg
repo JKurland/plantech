@@ -9,3 +9,22 @@ event MouseButton {
     double x_rel
     double y_rel
 }
+
+event KeyPress {
+    int glfw_key
+}
+
+event WindowResize {
+    int width
+    int height
+}
+
+event WindowMinimised {}
+event WindowRestored {}
+
+data Extent2D {
+    int width
+    int height
+}
+
+request GetWindowFramebufferSize -> Extent2D {}

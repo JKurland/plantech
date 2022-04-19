@@ -96,7 +96,7 @@ std::string dumpDataType(const module::DataType& dataType, const module::Module&
 CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders) {
     std::string header;
 
-
+    header.append("#pragma once\n");
     header.append("#include <string>\n");
     header.append("#include <cstdint>\n");
     header.append("#include <vector>\n");

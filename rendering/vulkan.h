@@ -16,6 +16,7 @@
 #include "thread_pool/mutex.h"
 #include "rendering/utils.h"
 #include "utils/move_detector.h"
+#include "messages/messages.h"
 
 namespace pt {
 
@@ -110,7 +111,7 @@ public:
     template<IsContext C>
     VulkanRendering(C& ctx, size_t maxFramesInFlight): maxFramesInFlight(maxFramesInFlight) {
         window = ctx.request_sync(GetWindowPointer{});
-        initVulkan();
+        initVulkan(ctx.request_sync(GetWindowFramebufferSize{}));
         newSwapChain = true;
     }
 
@@ -137,7 +138,8 @@ public:
         }
 
         co_await ctx.emit_await(PreRender{});
-        drawFrame();
+        auto framebufferSize = co_await ctx(GetWindowFramebufferSize{});
+        drawFrame(framebufferSize);
     }
 
     EVENT(WindowResize) {
@@ -179,17 +181,17 @@ public:
     }
 
 private:
-    void drawFrame();
+    void drawFrame(const Extent2D& framebufferSize);
 
-    void initVulkan();
+    void initVulkan(const Extent2D& framebufferSize);
     void createInstance();
     void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
-    void createSwapChain();
+    void createSwapChain(const Extent2D& framebufferSize);
     void createSyncObjects();
 
-    void recreateSwapChain();
+    void recreateSwapChain(const Extent2D& framebufferSize);
     SwapChainInfo swapChainInfo();
 
     VkCommandPool createCommandPool();
@@ -201,7 +203,7 @@ private:
     vulkan::detail::SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, const Extent2D& framebufferSize);
 
     void cleanupSwapChain();
     void cleanup();

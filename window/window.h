@@ -12,20 +12,10 @@
 
 #include "core_messages/control.h"
 #include "framework/context.h"
+#include "messages/messages.h"
 
 namespace pt {
 
-struct KeyPress {
-    int glfw_key;
-};
-
-struct WindowResize {
-    int width;
-    int height;
-};
-
-struct WindowMinimised {};
-struct WindowRestored {};
 
 struct GetWindowPointer {
     using ResponseT = GLFWwindow*;
@@ -133,6 +123,12 @@ public:
 
     REQUEST(GetWindowPointer) {
         co_return window.get();
+    }
+
+    REQUEST(GetWindowFramebufferSize) {
+        Extent2D size;
+        glfwGetFramebufferSize(window.get(), &size.width, &size.height);
+        co_return size;
     }
 private:
 
