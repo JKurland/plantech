@@ -1,3 +1,6 @@
+import VkSurfaceKHR
+import VkInstance
+
 event MouseButton {
     int button
     int action
@@ -28,3 +31,7 @@ data Extent2D {
 }
 
 request GetWindowFramebufferSize -> Extent2D {}
+
+request CreateWindowSurface -> VkSurfaceKHR {
+    VkInstance instance
+}

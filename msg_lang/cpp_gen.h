@@ -9,6 +9,6 @@ struct CppSource {
     std::string source;
 };
 
-CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders);
+CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders, const std::vector<std::string>& systemHeaders);
 
 }

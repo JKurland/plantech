@@ -19,8 +19,6 @@ namespace pt {
 using namespace vulkan::detail;
 
 void VulkanRendering::initVulkan(const Extent2D& framebufferSize) {
-    createInstance();
-    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
     createSwapChain(framebufferSize);
@@ -62,11 +60,6 @@ void VulkanRendering::createInstance() {
     createInfo.enabledLayerCount = 0;
 
     VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
-    assert(result == VK_SUCCESS);
-}
-
-void VulkanRendering::createSurface() {
-    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
     assert(result == VK_SUCCESS);
 }
 

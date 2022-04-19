@@ -12,7 +12,6 @@
 #include <cstring>
 
 #include "framework/context.h"
-#include "window/window.h"
 #include "thread_pool/mutex.h"
 #include "rendering/utils.h"
 #include "utils/move_detector.h"
@@ -110,7 +109,8 @@ class VulkanRendering {
 public:
     template<IsContext C>
     VulkanRendering(C& ctx, size_t maxFramesInFlight): maxFramesInFlight(maxFramesInFlight) {
-        window = ctx.request_sync(GetWindowPointer{});
+        createInstance();
+        surface = ctx.request_sync(CreateWindowSurface{instance});
         initVulkan(ctx.request_sync(GetWindowFramebufferSize{}));
         newSwapChain = true;
     }
@@ -185,7 +185,6 @@ private:
 
     void initVulkan(const Extent2D& framebufferSize);
     void createInstance();
-    void createSurface();
     void pickPhysicalDevice();
     void createLogicalDevice();
     void createSwapChain(const Extent2D& framebufferSize);
@@ -208,7 +207,6 @@ private:
     void cleanupSwapChain();
     void cleanup();
 
-    GLFWwindow* window;
     VkInstance instance;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device;

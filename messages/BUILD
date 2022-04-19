@@ -4,6 +4,8 @@ msg_lang_cpp(
     name = "messages",
     srcs = glob(["*.msg"]),
     deps = ["//gui"],
+    system_hdrs = ["vulkan/vulkan.h"],
+    linkopts = ["-lvulkan"],
     visibility = ["//visibility:public"],
 )
 

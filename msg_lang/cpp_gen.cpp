@@ -93,7 +93,7 @@ std::string dumpDataType(const module::DataType& dataType, const module::Module&
     );
 };
 
-CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders) {
+CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders, const std::vector<std::string>& systemHeaders) {
     std::string header;
 
     header.append("#pragma once\n");
@@ -101,6 +101,12 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
     header.append("#include <cstdint>\n");
     header.append("#include <vector>\n");
     header.append("#include <optional>\n");
+
+    for (const auto& h: systemHeaders) {
+        header.append("#include <");
+        header.append(h);
+        header.append(">\n");
+    }
 
     for (const auto& h: includeHeaders) {
         header.append("#include \"");

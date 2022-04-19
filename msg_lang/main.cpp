@@ -15,6 +15,7 @@ struct Arguments {
     std::filesystem::path headerOut;
     std::filesystem::path sourceOut;
     std::vector<std::string> includeHeaders;
+    std::vector<std::string> systemHeaders;
 };
 
 constexpr std::string_view kUsage = R"##(
@@ -29,6 +30,7 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
         headerOut,
         sourceOut,
         includeHeader,
+        systemHeader,
     };
 
     Arguments rtn;
@@ -44,6 +46,8 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
                     nextArg = NextArg::sourceOut;
                 } else if (arg == "-i") {
                     nextArg = NextArg::includeHeader;
+                } else if (arg == "--system_header") {
+                    nextArg = NextArg::systemHeader;
                 } else {
                     rtn.inputs.push_back(arg);
                 }
@@ -61,6 +65,11 @@ std::variant<Arguments, std::string> parseArgs(int argc, char** argv) {
             }
             case NextArg::includeHeader: {
                 rtn.includeHeaders.push_back(std::string(arg));
+                nextArg = NextArg::input;
+                break;
+            }
+            case NextArg::systemHeader: {
+                rtn.systemHeaders.push_back(std::string(arg));
                 nextArg = NextArg::input;
                 break;
             }
@@ -133,7 +142,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    CppSource output = genCpp(mod, args.includeHeaders);
+    CppSource output = genCpp(mod, args.includeHeaders, args.systemHeaders);
 
     {
         std::ofstream f(headerOut);

@@ -17,11 +17,6 @@
 namespace pt {
 
 
-struct GetWindowPointer {
-    using ResponseT = GLFWwindow*;
-};
-
-
 namespace window::detail {
     struct WindowDelete{
         void operator()(GLFWwindow* window);
@@ -121,14 +116,17 @@ public:
         co_return;
     }
 
-    REQUEST(GetWindowPointer) {
-        co_return window.get();
-    }
-
     REQUEST(GetWindowFramebufferSize) {
         Extent2D size;
         glfwGetFramebufferSize(window.get(), &size.width, &size.height);
         co_return size;
+    }
+
+    REQUEST(CreateWindowSurface) {
+        VkSurfaceKHR surface;
+        VkResult result = glfwCreateWindowSurface(request.instance, window.get(), nullptr, &surface);
+        assert(result == VK_SUCCESS);
+        co_return surface;
     }
 private:
 

@@ -35,6 +35,11 @@ def _impl(ctx):
                 args.append("-i")
                 args.append(find_include_suffix(hdr.path, include_paths))
 
+    if ctx.attr.system_hdrs:
+        for h in ctx.attr.system_hdrs:
+            args.append("--system_header")
+            args.append(h)
+
     for src in ctx.files.srcs:
         args.append(src.path)
 
@@ -58,6 +63,7 @@ _msg_lang_cpp_gen = rule(
         "srcs": attr.label_list(allow_files = [".msg"], allow_empty = False),
         "header_name": attr.string(),
         "deps": attr.label_list(providers = [CcInfo]),
+        "system_hdrs": attr.string_list(),
         "_msg_lang_c": attr.label(executable = True, cfg = "exec", default = "//msg_lang:msg_lang_c"),
     },
     provides = [CppSourceInfo],
@@ -87,12 +93,13 @@ _cpp_sources = rule(
     }
 )
 
-def msg_lang_cpp(name, srcs = [], deps = None, **kwargs):
+def msg_lang_cpp(name, srcs = [], deps = None, system_hdrs = None, **kwargs):
     _msg_lang_cpp_gen(
         name = "_{}_gen".format(name),
         header_name = "{}.h".format(name),
         srcs = srcs,
         deps = deps,
+        system_hdrs = system_hdrs,
     )
 
     _cpp_headers(
