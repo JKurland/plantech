@@ -131,11 +131,18 @@ struct MessageMember {
     std::string name;
 };
 
+enum class MessageType {
+    Event,
+    Request,
+    Data,
+    ErrorMessageType
+};
 
 struct Message {
     size_t sourcePos;
     const SourceFile* sourceFile;
     ItemName name;
+    MessageType type;
     std::vector<MessageMember> members;
     std::optional<DataType> expectedResponse;
     std::optional<std::vector<TemplateParameter>> templateParams;

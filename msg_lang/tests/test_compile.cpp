@@ -553,3 +553,27 @@ event S {
 
     assertCompileFails();
 }
+
+TEST_F(TestModule, should_require_response_for_request) {
+    addFile(R"#(
+request R {}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_not_allow_response_for_event) {
+    addFile(R"#(
+event E -> int {}
+    )#");
+
+    assertCompileFails();
+}
+
+TEST_F(TestModule, should_not_allow_response_for_data) {
+    addFile(R"#(
+data D -> int {}
+    )#");
+
+    assertCompileFails();
+}

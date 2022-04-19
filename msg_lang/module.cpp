@@ -82,6 +82,7 @@ public:
         processNamespaces();
         checkForCyclicTypeDependencies();
         checkNumTemplateArguments();
+        checkMessageTypes();
         return mod;
     }
 
@@ -210,7 +211,23 @@ private:
                         continue;
                     }
 
-                    auto handle = mod.addMessage(Message{node.sourcePos, &file.sourceFile, name, {}, std::nullopt});
+                    MessageType messageType = [&]{
+                        if (item.type.s == "event") {
+                            return MessageType::Event;
+                        } else if (item.type.s == "request") {
+                            return MessageType::Request;
+                        } else if (item.type.s == "data") {
+                            return MessageType::Data;
+                        } else {
+                            addError(Error{
+                                .message = "Invalid message type",
+                                .location = getLocation(file.sourceFile, node.sourcePos),
+                            });
+                            return MessageType::ErrorMessageType;
+                        }
+                    }();
+
+                    auto handle = mod.addMessage(Message{node.sourcePos, &file.sourceFile, name, messageType, {}, std::nullopt});
                     messageItems.emplace(name, ItemFromFile{&node, &file, handle}).second;
                 }
             }
@@ -448,6 +465,39 @@ private:
 
             for (const auto& member: message.members) {
                 checkNumTemplateArgumentsForDataType(member.type);
+            }
+        }
+    }
+
+    void checkMessageTypes() {
+        for (const auto& item: messageItems) {
+            const auto& message = mod.getMessage(item.second.handle);
+
+            switch (message.type) {
+                case MessageType::Data:
+                case MessageType::Event: {
+                    if (message.expectedResponse) {
+                        addError(Error{
+                            .message = "Message type does not allow a response",
+                            .location = getLocation(*message.sourceFile, message.sourcePos),
+                        });
+                    }
+                    break;
+                }
+
+                case MessageType::Request: {
+                    if (!message.expectedResponse) {
+                        addError({
+                            .message = "Message type requires a response type",
+                            .location = getLocation(*message.sourceFile, message.sourcePos),
+                        });
+                    }
+                    break;
+                }
+
+                case MessageType::ErrorMessageType: {
+                    break;
+                }
             }
         }
     }
