@@ -1,4 +1,5 @@
 #include "rendering/vulkan.h"
+#include "messages/messages.h"
 #include <set>
 #include <string>
 #include <vector>
@@ -292,9 +293,12 @@ void VulkanRendering::createSwapChain(const Extent2D& framebufferSize) {
 
 SwapChainInfo VulkanRendering::swapChainInfo() {
     return SwapChainInfo {
-        std::span(swapChainImages),
+        std::vector(swapChainImages),
         swapChainImageFormat,
-        swapChainExtent,
+        Extent2D {
+            .width = swapChainExtent.width,
+            .height = swapChainExtent.height
+        }
     };
 }
 

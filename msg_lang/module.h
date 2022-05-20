@@ -47,7 +47,12 @@ struct ItemNameHash {
 class DataType;
 
 enum class BuiltinType {
-    Int,
+    Void,
+    Byte,
+    Bool,
+    Int, // 32 bits
+    UInt, // 32 bits
+    USize,
     Float,
     Double,
     String,

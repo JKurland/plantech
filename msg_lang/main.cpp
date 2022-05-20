@@ -19,8 +19,9 @@ struct Arguments {
 };
 
 constexpr std::string_view kUsage = R"##(
-Usage: msg_lang_c -h HEADER_OUTPUT -s SOURCE_OUTPUT -i INCLUDE_HEADER INPUT_FILES...
-    -i    INCLUDE_HEADER      #include'd in HEADER_OUTPUT
+Usage: msg_lang_c -h HEADER_OUTPUT -s SOURCE_OUTPUT -i INCLUDE_HEADER --system_header SYSTEM_HEADER INPUT_FILES...
+    -i               INCLUDE_HEADER      #include'd in HEADER_OUTPUT
+    --system_header  INCLUDE_HEADER      #include'd in HEADER_OUTPUT with <>
 )##";
 
 // if string then string contains the error

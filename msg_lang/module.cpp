@@ -109,6 +109,21 @@ private:
             if (s == "int") {
                 return wrap(BuiltinType::Int);
             }
+            else if (s == "uint") {
+                return wrap(BuiltinType::UInt);
+            }
+            else if (s == "void") {
+                return wrap(BuiltinType::Void);
+            }
+            else if (s == "bool") {
+                return wrap(BuiltinType::Bool);
+            }
+            else if (s == "byte") {
+                return wrap(BuiltinType::Byte);
+            }
+            else if (s == "usize") {
+                return wrap(BuiltinType::USize);
+            }
             else if (s == "float") {
                 return wrap(BuiltinType::Float);
             }
@@ -382,7 +397,12 @@ private:
                     case BuiltinType::Double:
                     case BuiltinType::Float:
                     case BuiltinType::Int:
+                    case BuiltinType::UInt:
+                    case BuiltinType::USize:
                     case BuiltinType::String:
+                    case BuiltinType::Bool:
+                    case BuiltinType::Void:
+                    case BuiltinType::Byte:
                         return std::nullopt;
                     case BuiltinType::List:
                     case BuiltinType::Option:

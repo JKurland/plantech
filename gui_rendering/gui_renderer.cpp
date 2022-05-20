@@ -180,7 +180,10 @@ void GuiRenderer::createGraphicsPipeline() {
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = swapChainInfo.extent;
+    scissor.extent = VkExtent2D {
+        .width = swapChainInfo.extent.width,
+        .height = swapChainInfo.extent.height,
+    };
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -402,9 +405,9 @@ void GuiRenderer::createClickBufferDescriptor() {
 
 TransferDataToBuffer GuiRenderer::vertexBufferTransferRequest() {
     return TransferDataToBuffer{
-        .data = std::span(
-            reinterpret_cast<const char*>(vertexBuffers.triangleVertexBuffer.data()),
-            vertexBuffers.triangleVertexBuffer.size() * sizeof(vertexBuffers.triangleVertexBuffer[0])
+        .data = std::vector(
+            reinterpret_cast<const unsigned char*>(vertexBuffers.triangleVertexBuffer.data()),
+            reinterpret_cast<const unsigned char*>(vertexBuffers.triangleVertexBuffer.data()) + vertexBuffers.triangleVertexBuffer.size() * sizeof(vertexBuffers.triangleVertexBuffer[0])
         ),
         .dst_buffer = vertexBuffer,
     };
@@ -436,7 +439,10 @@ void GuiRenderer::createCommandBuffers() {
         renderPassInfo.renderPass = renderPass;
         renderPassInfo.framebuffer = swapChainFramebuffers[i];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = swapChainInfo.extent;
+        renderPassInfo.renderArea.extent = VkExtent2D{
+            .width = swapChainInfo.extent.width,
+            .height = swapChainInfo.extent.height,
+        };
 
         std::array<VkClearValue, 2> clearValues{};
         clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};

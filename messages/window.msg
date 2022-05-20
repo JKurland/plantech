@@ -26,8 +26,8 @@ event WindowMinimised {}
 event WindowRestored {}
 
 data Extent2D {
-    int width
-    int height
+    uint width
+    uint height
 }
 
 request GetWindowFramebufferSize -> Extent2D {}

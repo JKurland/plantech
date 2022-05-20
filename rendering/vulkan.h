@@ -37,73 +37,7 @@ namespace vulkan::detail {
     };
 }
 
-struct NewFrame {};
 
-class CommandBufferHandle {
-public:
-    auto operator<=>(const CommandBufferHandle&) const = default;
-private:
-    CommandBufferHandle() = default;
-    friend class VulkanRendering;
-    size_t idx;
-};
-
-struct NewCommandBufferHandle {
-    using ResponseT = CommandBufferHandle;
-};
-
-struct NewCommandPool {
-    using ResponseT = VkCommandPool;
-};
-
-struct UpdateCommandBuffers {
-    // whether there were previously buffers registered with this handle
-    using ResponseT = bool; 
-
-    // handle from NewCommandBufferHandle
-    CommandBufferHandle handle;
-
-    // one buffer per swapchain image. Must be in the same order as the
-    // swapchain images in NewSwapChain. VulkanRendering does not
-    // take ownership of these commandBuffers, it is still your responsibility
-    // to clean them up.
-    std::vector<VkCommandBuffer> commandBuffers;
-};
-
-struct TransferDataToBuffer {
-    using ResponseT = void;
-
-    std::span<const char> data;
-    VkBuffer dst_buffer;
-};
-
-struct SwapChainInfo {
-    std::span<VkImage> images;
-    VkFormat imageFormat;
-    VkExtent2D extent;
-};
-
-struct NewSwapChain {
-    SwapChainInfo info;
-    VkDevice device;
-};
-
-// Emitted before rendering, another render will not
-// be kicked off, nor another PreRender emitted,
-// before all handlers have finished with PreRender.
-struct PreRender {};
-
-struct GetVulkanPhysicalDevice {
-    using ResponseT = VkPhysicalDevice;
-};
-
-struct GetVulkanDevice {
-    using ResponseT = VkDevice;
-};
-
-struct GetSwapChainInfo {
-    using ResponseT = SwapChainInfo;
-};
 
 class VulkanRendering {
 public:
@@ -129,10 +63,11 @@ public:
         if (newSwapChain) {
             if constexpr (ctx.template can_handle<NewSwapChain>()) {
                 vkDeviceWaitIdle(device);
-                co_await ctx.emit_await(NewSwapChain{
+                auto event = NewSwapChain{
                     swapChainInfo(),
                     device,
-                });
+                };
+                co_await ctx.emit_await(std::move(event));
             }
             newSwapChain = false;
         }

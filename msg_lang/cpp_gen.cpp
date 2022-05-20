@@ -39,6 +39,21 @@ std::string dumpDataType(const module::DataType& dataType, const module::Module&
                 case module::BuiltinType::Int: {
                     return "std::int32_t";
                 }
+                case module::BuiltinType::UInt: {
+                    return "std::uint32_t";
+                }
+                case module::BuiltinType::USize: {
+                    return "std::size_t";
+                }
+                case module::BuiltinType::Bool: {
+                    return "bool";
+                }
+                case module::BuiltinType::Void: {
+                    return "void";
+                }
+                case module::BuiltinType::Byte: {
+                    return "unsigned char";
+                }
                 case module::BuiltinType::Float: {
                     return "float";
                 }
@@ -156,6 +171,28 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
             header.append("    using ResponseT = ");
             header.append(dumpDataType(*message.expectedResponse, module));
             header.append(";\n");
+        }
+
+        // if this message has no imported members we can safely add comparison operators
+        const bool hasImportedMembers = [&]{
+            for (const auto& member: message.members) {
+                if (member.type.template is<module::ImportedType>()) {
+                    return true;
+                }
+            }
+            return false;
+        }();
+
+        if (!hasImportedMembers) {
+            header.append("auto operator<=>(const ");
+            header.append(dumpItemName(message.name));
+            header.append("&) const = default;\n");
+        }
+
+        if (!hasImportedMembers) {
+            header.append("bool operator==(const ");
+            header.append(dumpItemName(message.name));
+            header.append("&) const = default;\n");
         }
 
         header.append("};\n");

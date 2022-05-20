@@ -117,9 +117,11 @@ public:
     }
 
     REQUEST(GetWindowFramebufferSize) {
-        Extent2D size;
-        glfwGetFramebufferSize(window.get(), &size.width, &size.height);
-        co_return size;
+        int width, height;
+        glfwGetFramebufferSize(window.get(), &width, &height);
+        assert(width >= 0);
+        assert(height >= 0);
+        co_return Extent2D {static_cast<uint>(width), static_cast<uint>(height)};
     }
 
     REQUEST(CreateWindowSurface) {
