@@ -18,8 +18,6 @@
 
 #include <gtest/gtest.h>
 
-#include "framework/context.h"
-
 namespace pt::testing {
 
 struct WorldEntryName {
