@@ -1,16 +1,17 @@
 cc_library(
-    name = "test_utils",
+    name = "project",
     hdrs = glob(["*.h"]),
     srcs = glob(["*.cpp"]),
-    deps = ["//framework", "@com_google_googletest//:gtest"],
+    visibility = ["//visibility:public"],
+    deps = ["//messages", "//framework"],
     linkopts = ["-ldl"],
     copts = ["-Werror"],
-    visibility = ["//visibility:public"],
 )
 
 cc_test(
     name = "test",
     srcs = glob(["tests/*.cpp"]),
-    deps = ["//test_utils", "@com_google_googletest//:gtest_main"],
+    deps = [":project", "@com_google_googletest//:gtest_main", "//test_utils"],
     copts = ["-Werror"],
 )
+

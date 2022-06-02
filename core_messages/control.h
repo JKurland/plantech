@@ -4,8 +4,6 @@
 #include <future>
 #include "messages/messages.h"
 
-
-
 namespace pt {
 
 struct Quitter {
