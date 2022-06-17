@@ -5,8 +5,10 @@
 #include "rendering/framerate_driver.h"
 #include "test_utils/fixture.h"
 
+
 using namespace pt;
 
+// x and y coords that are outside the button
 constexpr double outsideButton = 200;
 
 class TestGuiManager: public ProgramControlFixture<TestGuiManager> {

@@ -9,6 +9,8 @@ struct GivenAnInt: TestStep<Provides<Name, int>> {
     auto step(const auto world) const {
         return this->worldUpdate(WorldEntry<Name, int>{2});
     }
+
+    void cleanup(const auto world) const {}
 };
 
 template<WorldEntryName Name>
@@ -16,6 +18,8 @@ struct WhenIntIsDoubled: TestStep<Requires<Name, int>> {
     void step(auto world) const {
         world.template getEntry<Name, int>() *= 2;
     }
+
+    void cleanup(const auto world) const {}
 };
 
 template<WorldEntryName Name>
@@ -24,6 +28,8 @@ struct ThenIntIsEven: TestStep<Requires<Name, int>> {
         auto i = world.template getEntry<Name, int>();
         ASSERT_EQ(i % 2, 0);
     }
+
+    void cleanup(const auto world) const {}
 };
 
 template<WorldEntryName Name>
@@ -32,6 +38,8 @@ struct ThenIntIsOdd: TestStep<Requires<Name, int>> {
         auto i = world.template getEntry<Name, int>();
         ASSERT_EQ(i % 2, 1);
     }
+
+    void cleanup(const auto world) const {}
 };
 
 TEST(TestTestFramework, test_it_compiles) {

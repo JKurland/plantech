@@ -80,6 +80,21 @@ namespace detail {
 
     template<typename...WorldEntryTs>
     class World {
+    private:
+        static constexpr size_t indexFromName(WorldEntryName name) {
+            size_t idx = 0;
+            size_t rtn = 0;
+            size_t numFound = 0;
+
+            ((WorldEntryTs::name == name ? rtn = idx, numFound++ : idx++), ...);
+            if (numFound == 1) {
+                return rtn;
+            } else if (numFound > 1) {
+                throw "more than one entry with name";
+            } else {
+                throw "name not in world";
+            }
+        }
     public:
         World() = default;
 
@@ -133,6 +148,9 @@ namespace detail {
                 std::get<std::optional<std::decay_t<EntryT>>>(entries) = std::forward<EntryT>(entry);
             }
         }
+
+        template<WorldEntryName Name>
+        using ValueTForName = typename std::tuple_element<indexFromName(Name), std::tuple<WorldEntryTs...>>;
     private:
         template<typename EntryT>
         static constexpr bool hasEntry() {
@@ -197,6 +215,16 @@ public:
         return world->template getEntry<Name, ValueT>();
     }
 
+    template<WorldEntryName Name>
+    auto& getEntryByName() {
+        return getEntry<Name, typename WorldT::ValueTForName<Name>>();
+    }
+
+    template<WorldEntryName Name>
+    const auto& getEntryByName() const {
+        return getEntry<Name, typename WorldT::ValueTForName<Name>>();
+    }
+
     template<typename EntryT>
     static constexpr bool getAllowed() {
         return (WorldEntryPolicies::template allow<EntryT>() || ...);
@@ -257,7 +285,7 @@ public:
         ));
     }
 
-    void run() const {
+    void run() {
         used = true;
         bool valid = true;
         checkProvidesAndRequiresMatchUp(valid);
@@ -267,6 +295,15 @@ public:
         [&]<size_t...Is>(std::index_sequence<Is...>){
             (runStep(world, std::get<Is>(steps)), ...);
         }(std::make_index_sequence<sizeof...(StepTs)>{});
+
+
+        [&]<size_t...Is>(std::index_sequence<Is...>){
+            (runCleanup(world, std::get<sizeof...(Is) - Is - 1>(steps)), ...);
+        }(std::make_index_sequence<sizeof...(StepTs)>{});
+    }
+
+    void markAsUsed() const {
+        used = true;
     }
 private:
     template<typename...ArgTs>
@@ -279,7 +316,7 @@ private:
     friend class Test;
 
     template<typename WorldT, typename StepT>
-    void runStep(WorldT& world, const StepT& step) const {
+    void runStep(WorldT& world, const StepT& step) {
         auto worldRef = detail::WorldRefFromRequiresT<WorldT, detail::ConcatTypeListsT<typename StepT::Requires, typename StepT::RequiresNameOnly>>{world};
 
         using WorldUdpateT = std::decay_t<decltype(step.step(worldRef))>;
@@ -289,6 +326,12 @@ private:
             auto update = step.step(worldRef);
             std::move(update).pushUpdate(world);
         }
+    }
+
+    template<typename WorldT, typename StepT>
+    void runCleanup(WorldT& world, const StepT& step) {
+        auto worldRef = detail::WorldRefFromRequiresT<WorldT, detail::ConcatTypeListsT<typename StepT::Requires, typename StepT::RequiresNameOnly>>{world};
+        step.cleanup(worldRef);
     }
 
     auto makeWorld() const {
@@ -491,6 +534,11 @@ public:
     static WorldUpdateT worldUpdate(Ts&&...args) {
         return WorldUpdateT{std::forward<Ts>(args)...};
     }
+
+    // derived classes need to implement
+
+    // WorldUpdateT step(auto world) const;
+    // void cleanup(auto world) const;
 };
 
 }

@@ -11,7 +11,7 @@ cc_library(
 cc_test(
     name = "test",
     srcs = glob(["tests/*.cpp"]),
-    deps = [":project", "@com_google_googletest//:gtest_main", "//test_utils"],
+    deps = [":project", "//test_utils"],
     copts = ["-Werror"],
 )
 

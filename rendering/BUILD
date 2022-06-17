@@ -15,4 +15,3 @@ spirv(
     name = "mesh_shaders",
     srcs = ["mesh.vert.glsl", "mesh.frag.glsl"],
 )
-
