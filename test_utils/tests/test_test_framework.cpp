@@ -63,20 +63,20 @@ TEST(TestTestFramework, should_assert_on_test_failure) {
 
 
 TEST(TestTestFramework, should_fail_when_provides_arent_present) {
-    EXPECT_FATAL_FAILURE(
+    EXPECT_ANY_THROW(
     ::pt::testing::Test()
         (WhenIntIsDoubled<"Hello">{})
         .run()
-    , "");
+    );
 }
 
 TEST(TestTestFramework, should_fail_when_provides_are_in_the_wrong_order) {
-    EXPECT_FATAL_FAILURE(
+    EXPECT_ANY_THROW(
     ::pt::testing::Test()
         (WhenIntIsDoubled<"Hello">{})
         (GivenAnInt<"Hello">{})
         .run()
-    , "");
+    );
 }
 
 

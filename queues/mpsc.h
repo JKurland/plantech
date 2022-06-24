@@ -49,10 +49,12 @@ private:
 
 template<typename T>
 MpscQueue<T>::~MpscQueue() {
-    for (size_t i = 0; i < size; i++) {
-        get(i).~T();
+    if (buffer) {
+        for (size_t i = 0; i < size; i++) {
+            get(i).~T();
+        }
+        std::free(buffer);
     }
-    std::free(buffer);
 }
 
 template<typename T>

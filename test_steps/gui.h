@@ -42,6 +42,8 @@ struct GivenAButton: TestStep<Provides<Name, ButtonInfo>, RequiresNameOnly<"Cont
             .element = Button(),
         });
 
+        context.emit_sync(NewFrame{});
+
         return this->worldUpdate(
             WorldEntry<Name, ButtonInfo>{ButtonInfo{x, y, 100, 40, button}}
         );

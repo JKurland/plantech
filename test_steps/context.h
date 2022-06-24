@@ -35,7 +35,7 @@ public:
         return *observer_;
     }
 
-    SentMessages(): observer_(new Observer(*messages)) {}
+    SentMessages(): messages(new std::vector<std::pair<void*, std::type_index>>), observer_(new Observer(*messages)) {}
 
     template<typename MessageT, typename PredT>
     bool hasMessageMatchingPred(const PredT& pred) const {
@@ -74,6 +74,8 @@ public:
         auto sentMessages = SentMessages{};
         context.addObserver(sentMessages.observer());
 
+        context.emit_sync(ProgramStart{});
+        context.wait_for_all_events_to_finish();
         return this->worldUpdate(
             WorldEntry<"Context", Context<HandlerTs...>>{
                 std::move(context)

@@ -51,11 +51,11 @@ public:
 
     ~FixedCoroutineThreadPool();
 
-    FixedCoroutineThreadPool(const FixedCoroutineThreadPool&) = default;
-    FixedCoroutineThreadPool(FixedCoroutineThreadPool&&) = default;
+    FixedCoroutineThreadPool(const FixedCoroutineThreadPool&) = delete;
+    FixedCoroutineThreadPool(FixedCoroutineThreadPool&&) = delete;
 
-    FixedCoroutineThreadPool& operator=(const FixedCoroutineThreadPool&) = default;
-    FixedCoroutineThreadPool& operator=(FixedCoroutineThreadPool&&) = default;
+    FixedCoroutineThreadPool& operator=(const FixedCoroutineThreadPool&) = delete;
+    FixedCoroutineThreadPool& operator=(FixedCoroutineThreadPool&&) = delete;
 
     void push(std::coroutine_handle<> handle) override;
     void push_sleep_until(std::coroutine_handle<> handle, std::chrono::steady_clock::time_point until) override;

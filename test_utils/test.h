@@ -399,7 +399,7 @@ private:
                     error.append(unprovidedEntry);
                 }
                 valid = false;
-                throw error;
+                throw std::logic_error(error);
             }
 
             StepT::Provides::forEachType(
@@ -557,7 +557,7 @@ public:
     void step(auto world) {
         try {
             inner_step.step(world);
-            throw "inner_step did not throw";
+            throw std::logic_error("inner_step did not throw");
         } catch (...) {}
     }
 

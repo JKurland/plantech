@@ -229,8 +229,7 @@ namespace context::detail {
         CtorArgs(ArgTs&&...args): args(std::forward<ArgTs>(args)...) {}
         using Type = T;
 
-        // we always want a reference
-        std::tuple<ArgTs&&...> args;
+        std::tuple<std::decay_t<ArgTs>...> args;
     };
 
 
@@ -265,12 +264,12 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
-        run_awaitable_async(thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
+        run_awaitable_async(state->thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
     }
 
     template<bool AllowUnhandled=true, Event E>
     void emit_sync(E&& event) {
-        run_awaitable_sync(thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
+        run_awaitable_sync(state->thread_pool, emit_await<AllowUnhandled>(std::forward<E>(event)));
     }
 
     template<bool AllowUnhandled=true, Event E>
@@ -289,7 +288,7 @@ public:
                 indexes,
                 [&](auto&...handlers) {
                     return context::detail::join(
-                        thread_pool,
+                        state->thread_pool,
                         [](Context& ctx){ctx.end_event();},
                         *this,
                         std::forward<E>(event),
@@ -322,7 +321,7 @@ public:
     template<Request R>
     auto request_sync(const R& request) {
         assert(!state->stopped);
-        return run_awaitable_sync(thread_pool, (*this)(request));
+        return run_awaitable_sync(state->thread_pool, (*this)(request));
     }
 
     template<Event E>
@@ -332,7 +331,6 @@ public:
     }
 
     void wait_for_all_events_to_finish() {
-        assert(state->stopped);
         std::unique_lock l(state->m);
         state->cv.wait(l, [&]{return state->events_in_progress == 0;});
     }
@@ -347,8 +345,11 @@ public:
     }
 
     ~Context() {
-        state->stopped = true;
-        wait_for_all_events_to_finish();
+        // if state is null we've been moved from
+        if (state) {
+            state->stopped = true;
+            wait_for_all_events_to_finish();
+        }
     }
 private:
     HandlerSet<HandlerTs...> handler_set;
@@ -358,11 +359,11 @@ private:
         std::condition_variable cv;
         std::atomic<bool> stopped = false;
         size_t events_in_progress = 0;
+        FixedCoroutineThreadPool<1> thread_pool;
     };
 
     // put this in a unique_ptr so context can be moved
     std::unique_ptr<State> state;
-    FixedCoroutineThreadPool<1> thread_pool;
 
     std::vector<ContextObserver*> observers;
 
