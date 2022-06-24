@@ -19,7 +19,7 @@ struct HandlerCreator<VulkanRendering, void> {
     auto makeContextArgs() {
         return ctor_args<VulkanRendering>(2);
     }
-}
+};
 
 }
 

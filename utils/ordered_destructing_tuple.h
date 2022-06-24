@@ -66,8 +66,8 @@ public:
     OrderedDestructingTuple(OrderedDestructingTuple&& o);
 
     // don't need operator= yet, do them later
-    OrderedDestructingTuple& operator=(const OrderedDestructingTuple& o) = delete;
-    OrderedDestructingTuple& operator=(OrderedDestructingTuple&& o) = delete;
+    OrderedDestructingTuple& operator=(const OrderedDestructingTuple& o);
+    OrderedDestructingTuple& operator=(OrderedDestructingTuple&& o);
 
     ~OrderedDestructingTuple();
 
@@ -157,6 +157,13 @@ OrderedDestructingTuple<Ts...>::OrderedDestructingTuple(const OrderedDestructing
 }
 
 template<typename...Ts>
+OrderedDestructingTuple<Ts...>& OrderedDestructingTuple<Ts...>::operator=(const OrderedDestructingTuple& o) {
+    if (this == &o) return *this;
+    copy_init(std::make_index_sequence<sizeof...(Ts)>{}, std::move(o));
+    return *this;
+}
+
+template<typename...Ts>
 template<size_t Offset, size_t...Is, typename...OTs>
 void OrderedDestructingTuple<Ts...>::copy_init(std::index_sequence<Is...>, const OrderedDestructingTuple<OTs...>& o) {
     (new (reinterpret_cast<OTs*>( &storage[offsets()[Is + Offset]] )) OTs(o.template get<Is>()), ...);
@@ -165,6 +172,13 @@ void OrderedDestructingTuple<Ts...>::copy_init(std::index_sequence<Is...>, const
 template<typename...Ts>
 OrderedDestructingTuple<Ts...>::OrderedDestructingTuple(OrderedDestructingTuple&& o) {
     move_init(std::make_index_sequence<sizeof...(Ts)>{}, std::move(o));
+}
+
+template<typename...Ts>
+OrderedDestructingTuple<Ts...>& OrderedDestructingTuple<Ts...>::operator=(OrderedDestructingTuple&& o) {
+    if (this == &o) return *this;
+    move_init(std::make_index_sequence<sizeof...(Ts)>{}, std::move(o));
+    return *this;
 }
 
 template<typename...Ts>

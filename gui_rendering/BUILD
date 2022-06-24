@@ -14,7 +14,7 @@ cc_library(
 cc_test(
     name = "test",
     srcs = glob(["tests/*.cpp"]),
-    deps = [":gui_rendering", "//gui", "//rendering", "@com_google_googletest//:gtest_main", "//test_utils", "//gui_manager"],
+    deps = [":gui_rendering", "//gui", "//rendering", "@com_google_googletest//:gtest_main", "//test_utils", "//gui_manager", "//test_steps"],
     copts = ["-Werror"],
 )
 

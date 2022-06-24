@@ -5,6 +5,7 @@
 #include "test_utils/test.h"
 
 #include "framework/context.h"
+#include "messages/messages.h"
 
 namespace pt::testing {
 
@@ -26,14 +27,60 @@ public:
     }
 };
 
+class SentMessages {
+private:
+    class Observer;
+public:
+    Observer& observer() {
+        return *observer_;
+    }
+
+    SentMessages(): observer_(new Observer(*messages)) {}
+
+    template<typename MessageT, typename PredT>
+    bool hasMessageMatchingPred(const PredT& pred) const {
+        for (const auto& pair : *messages) {
+            if (typeid(MessageT) == pair.second && pred(*static_cast<MessageT*>(pair.first))) {
+                return true;
+            }
+        }
+        return false;
+    }
+private:
+
+    class Observer: public ContextObserver {
+    public:
+        void event(void* event, std::type_index type) override {
+            messages->push_back(std::make_pair(event, type));
+        }
+
+        Observer(std::vector<std::pair<void*, std::type_index>>& messages): messages(&messages) {}
+    private:
+        std::vector<std::pair<void*, std::type_index>>* messages;    
+    };
+
+    std::unique_ptr<std::vector<std::pair<void*, std::type_index>>> messages;
+    std::unique_ptr<Observer> observer_;
+};
+
 template<typename...HandlerTs>
-class GivenAContext: public TestStep<Provides<"Context", Context<HandlerTs...>>> {
+class GivenAContext: public TestStep<
+    Provides<"Context", Context<HandlerTs...>>,
+    Provides<"SentMessages", SentMessages>
+> {
 public:
     auto step(auto world) {
+        auto context = make_context(std::get<HandlerCreator<HandlerTs>>(handlerCreators).makeContextArgs()...);
+        auto sentMessages = SentMessages{};
+        context.addObserver(sentMessages.observer());
+
         return this->worldUpdate(
             WorldEntry<"Context", Context<HandlerTs...>>{
-                makeContext(std::get<HandlerCreator<HandlerTs>>(handlerCreators).makeContextArgs()...)
-            };
+                std::move(context)
+            },
+            WorldEntry<"SentMessages", SentMessages>{
+                std::move(sentMessages)
+            }
         );
     }
 

@@ -16,8 +16,6 @@
 #include <iostream>
 #include <typeindex>
 
-#include <gtest/gtest.h>
-
 namespace pt::testing {
 
 struct WorldEntryName {
@@ -150,7 +148,7 @@ namespace detail {
         }
 
         template<WorldEntryName Name>
-        using ValueTForName = typename std::tuple_element<indexFromName(Name), std::tuple<WorldEntryTs...>>;
+        using ValueTForName = typename std::tuple_element<indexFromName(Name), std::tuple<WorldEntryTs...>>::type::ValueT;
     private:
         template<typename EntryT>
         static constexpr bool hasEntry() {
@@ -187,7 +185,7 @@ public:
 
     template<typename WorldT>
     void pushUpdate(WorldT& world) && {
-        (world.setEntry2(*std::get<std::optional<WorldEntryTs>>(entries)), ...);
+        (world.setEntry2(std::move(*std::get<std::optional<WorldEntryTs>>(entries))), ...);
     }
 private:
 
@@ -202,14 +200,14 @@ public:
     WorldRef(WorldT& world): world(&world) {}
 
     template<WorldEntryName Name, typename ValueT>
-    auto& getEntry() {
+    ValueT& getEntry() {
         using EntryT = WorldEntry<Name, ValueT>;
         static_assert(getAllowed<EntryT>(), "Test step must request access to this entry via Provides parameter to base class");
         return world->template getEntry<Name, ValueT>();
     }
 
     template<WorldEntryName Name, typename ValueT>
-    const auto& getEntry() const {
+    const ValueT& getEntry() const {
         using EntryT = WorldEntry<Name, ValueT>;
         static_assert(getAllowed<EntryT>(), "Test step must request access to this entry via Provides parameter to base class");
         return world->template getEntry<Name, ValueT>();
@@ -316,7 +314,7 @@ private:
     friend class Test;
 
     template<typename WorldT, typename StepT>
-    void runStep(WorldT& world, const StepT& step) {
+    void runStep(WorldT& world, StepT& step) {
         auto worldRef = detail::WorldRefFromRequiresT<WorldT, detail::ConcatTypeListsT<typename StepT::Requires, typename StepT::RequiresNameOnly>>{world};
 
         using WorldUdpateT = std::decay_t<decltype(step.step(worldRef))>;
@@ -329,9 +327,11 @@ private:
     }
 
     template<typename WorldT, typename StepT>
-    void runCleanup(WorldT& world, const StepT& step) {
+    void runCleanup(WorldT& world, StepT& step) {
         auto worldRef = detail::WorldRefFromRequiresT<WorldT, detail::ConcatTypeListsT<typename StepT::Requires, typename StepT::RequiresNameOnly>>{world};
-        step.cleanup(worldRef);
+        if constexpr (requires {step.cleanup;}) {
+            step.cleanup(worldRef);
+        }
     }
 
     auto makeWorld() const {
@@ -378,9 +378,9 @@ private:
             StepT::RequiresNameOnly::forEachType(
                 [&]<typename RequiresNameOnlyT>{
                     for (const auto& providedEntry: providedEntries) {
-                        if (providedEntry.name == RequiresNameOnlyT::name) return;
+                        if (providedEntry.name == std::string_view(RequiresNameOnlyT::name.name.data())) return;
                     }
-                    unprovidedNameOnlyEntries.push_back(RequiresNameOnlyT::name);
+                    unprovidedNameOnlyEntries.push_back(RequiresNameOnlyT::name.name.data());
                 }
             );
 
@@ -399,7 +399,7 @@ private:
                     error.append(unprovidedEntry);
                 }
                 valid = false;
-                ASSERT_TRUE(false) << error;
+                throw error;
             }
 
             StepT::Provides::forEachType(
@@ -539,6 +539,30 @@ public:
 
     // WorldUpdateT step(auto world) const;
     // void cleanup(auto world) const;
+
+    using Base = TestStep;
+};
+
+
+template<typename StepT>
+class Not: public StepT::Base {
+public:
+    Not(StepT step): inner_step(std::move(step)) {}
+
+    static_assert(
+        std::is_same_v<typename StepT::Provides, detail::TypeList<>>,
+        "Not can only wrap steps which provide nothing"
+    );
+
+    void step(auto world) {
+        try {
+            inner_step.step(world);
+            throw "inner_step did not throw";
+        } catch (...) {}
+    }
+
+private:
+    StepT inner_step;
 };
 
 }

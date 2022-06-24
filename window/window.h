@@ -86,8 +86,6 @@ public:
                 mods,
                 x,
                 y,
-                2*(x / (width-1)) - 1,
-                2*(y / (height-1)) - 1
             });
         };
 

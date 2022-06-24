@@ -8,6 +8,8 @@
 #include <mutex>
 #include <thread>
 #include <chrono>
+#include <typeinfo>
+#include <typeindex>
 
 #include "thread_pool/thread_pool.h"
 #include "thread_pool/promise.h"
@@ -246,14 +248,20 @@ context::detail::CtorArgs<T, ArgTs...> ctor_args(ArgTs&&...args) {
     return context::detail::CtorArgs<T, ArgTs...>(std::forward<ArgTs>(args)...);
 }
 
+
+class ContextObserver {
+public:
+    virtual void event(void* event, std::type_index type) {}
+};
+
 template<typename...HandlerTs>
 class Context {
 public:
     Context(const Context&) = delete;
-    Context(Context&&) = delete;
+    Context(Context&&) = default;
 
     Context& operator=(const Context&) = delete;
-    Context& operator=(Context&&) = delete;
+    Context& operator=(Context&&) = default;
 
     template<bool AllowUnhandled=true, Event E>
     void emit(E&& event) {
@@ -267,7 +275,12 @@ public:
 
     template<bool AllowUnhandled=true, Event E>
     auto emit_await(E&& event) {
-        assert(!stopped);
+        assert(!state->stopped);
+
+        for (auto* o: observers) {
+            o->event(static_cast<void*>(&event), typeid(event));
+        }
+
         constexpr auto indexes = handler_set.template true_indexes<context::detail::EventPred<Context, E>>();
         static_assert(indexes.size() != 0 || AllowUnhandled, "Nothing to handle event E");
         if constexpr (indexes.size() != 0) {
@@ -291,7 +304,7 @@ public:
 
     template<Request R>
     auto operator()(const R& request) {
-        assert(!stopped);
+        assert(!state->stopped);
         constexpr auto indexes = handler_set.template true_indexes<context::detail::RequestPred<Context, R>>();
         static_assert(indexes.size() != 0, "Nothing to handle request R");
         static_assert(indexes.size() < 2, "More than one handler for request R");
@@ -308,7 +321,7 @@ public:
 
     template<Request R>
     auto request_sync(const R& request) {
-        assert(!stopped);
+        assert(!state->stopped);
         return run_awaitable_sync(thread_pool, (*this)(request));
     }
 
@@ -319,44 +332,61 @@ public:
     }
 
     void wait_for_all_events_to_finish() {
-        std::unique_lock l(m);
-        cv.wait(l, [&]{return events_in_progress == 0;});
+        assert(state->stopped);
+        std::unique_lock l(state->m);
+        state->cv.wait(l, [&]{return state->events_in_progress == 0;});
     }
 
     // should only be called by main or tests
     void no_more_messages() {
-        stopped = true;
+        state->stopped = true;
+    }
+
+    void addObserver(ContextObserver& o) {
+        observers.push_back(&o);
     }
 
     ~Context() {
+        state->stopped = true;
         wait_for_all_events_to_finish();
     }
 private:
     HandlerSet<HandlerTs...> handler_set;
 
-    std::atomic<size_t> events_in_progress = 0;
-    std::mutex m;
-    std::condition_variable cv;
+    struct State {
+        std::mutex m;
+        std::condition_variable cv;
+        std::atomic<bool> stopped = false;
+        size_t events_in_progress = 0;
+    };
 
+    // put this in a unique_ptr so context can be moved
+    std::unique_ptr<State> state;
     FixedCoroutineThreadPool<1> thread_pool;
 
-    std::atomic<bool> stopped = false;
+    std::vector<ContextObserver*> observers;
 
     template<typename...OtherHandlerTs, typename NewHandlerT>
     Context(Context<OtherHandlerTs...>&& old, NewHandlerT&& new_handler):
-        handler_set(std::move(old.handler_set), std::forward<NewHandlerT>(new_handler))
+        handler_set(std::move(old.handler_set), std::forward<NewHandlerT>(new_handler)),
+        state(new State)
     {}
 
-    Context(): handler_set() {}
+    Context(): handler_set(), state(new State) {}
 
     void start_event() {
-        events_in_progress++;
+        std::unique_lock l(state->m);
+        state->events_in_progress++;
     }
 
     void end_event() {
-        size_t prev = events_in_progress--;
+        size_t prev;
+        {
+            std::unique_lock l(state->m);
+            prev = state->events_in_progress--;
+        }
         if (prev == 1) {
-            cv.notify_all();
+            state->cv.notify_all();
         }
     }
 
