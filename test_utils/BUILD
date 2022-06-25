@@ -2,7 +2,7 @@ cc_library(
     name = "test_utils",
     hdrs = glob(["*.h"]),
     srcs = glob(["*.cpp"]),
-    deps = ["//framework", "@com_google_googletest//:gtest_main"],
+    deps = ["@com_google_googletest//:gtest_main"],
     linkopts = ["-ldl"],
     copts = ["-Werror"],
     visibility = ["//visibility:public"],
