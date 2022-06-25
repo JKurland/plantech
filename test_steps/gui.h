@@ -17,11 +17,10 @@ struct HandlerCreator<GuiRenderer, void> {
 
 
 struct ButtonInfo {
-    int x;
-    int y;
     int width;
     int height;
     GuiHandle<Button> handle;
+    GuiHandle<Translate> translateHandle;
 };
 
 template<WorldEntryName Name>
@@ -42,11 +41,27 @@ struct GivenAButton: TestStep<Provides<Name, ButtonInfo>, RequiresNameOnly<"Cont
             .element = Button(),
         });
 
-        context.emit_sync(NewFrame{});
-
         return this->worldUpdate(
-            WorldEntry<Name, ButtonInfo>{ButtonInfo{x, y, 100, 40, button}}
+            WorldEntry<Name, ButtonInfo>{ButtonInfo{100, 40, button, translateHandle}}
         );
+    }
+};
+
+// only works for 2 buttons, subsequent instances of this step can overwrite this step.
+template<WorldEntryName Name1, WorldEntryName Name2>
+struct GivenButtonsDoNotOverlap: TestStep<RequiresNameOnly<"Context">, Requires<Name1, ButtonInfo>, Requires<Name2, ButtonInfo>> {
+    void step(auto world) {
+        auto& context = world.template getEntryByName<"Context">();
+        ButtonInfo& button1 = world.template getEntry<Name1, ButtonInfo>();
+        ButtonInfo button2 = world.template getEntry<Name2, ButtonInfo>();
+
+        Translate newTranslate = *context.request_sync(GetGuiElement<Translate>{button1.translateHandle});
+        Translate translate2 = *context.request_sync(GetGuiElement<Translate>{button2.translateHandle});
+        newTranslate.offset.x = translate2.offset.x + button2.width + 2;
+        newTranslate.offset.y = translate2.offset.y + button2.height + 2;
+
+        context.request_sync(UpdateGuiElement{button1.translateHandle, newTranslate});
+
     }
 };
 
@@ -55,10 +70,12 @@ struct WhenButtonClicked: TestStep<Requires<Name, ButtonInfo>, RequiresNameOnly<
     void step(auto world) {
         auto& context = world.template getEntryByName<"Context">();
         const ButtonInfo& buttonInfo = world.template getEntry<Name, ButtonInfo>();
+        Translate translate = *context.request_sync(GetGuiElement<Translate>(buttonInfo.translateHandle));
 
-        double clickX = buttonInfo.x + buttonInfo.width/2;
-        double clickY = buttonInfo.y + buttonInfo.height/2;
+        double clickX = translate.offset.x + buttonInfo.width/2;
+        double clickY = translate.offset.y + buttonInfo.height/2;
 
+        context.emit_sync(NewFrame{});
         context.emit_sync(MouseButton{
             GLFW_MOUSE_BUTTON_LEFT,
             GLFW_PRESS,
@@ -74,10 +91,12 @@ struct WhenClickNotOnButton: TestStep<Requires<Name, ButtonInfo>, RequiresNameOn
     void step(auto world) {
         auto& context = world.template getEntryByName<"Context">();
         const ButtonInfo& buttonInfo = world.template getEntry<Name, ButtonInfo>();
+        Translate translate = *context.request_sync(GetGuiElement<Translate>(buttonInfo.translateHandle));
 
-        double clickX = buttonInfo.x + buttonInfo.width + 2;
-        double clickY = buttonInfo.y + buttonInfo.height + 2;
+        double clickX = translate.offset.x + buttonInfo.width + 2;
+        double clickY = translate.offset.y + buttonInfo.height + 2;
 
+        context.emit_sync(NewFrame{});
         context.emit_sync(MouseButton{
             GLFW_MOUSE_BUTTON_LEFT,
             GLFW_PRESS,

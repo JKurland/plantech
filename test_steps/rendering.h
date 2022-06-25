@@ -21,5 +21,15 @@ struct HandlerCreator<VulkanRendering, void> {
     }
 };
 
+
+struct WhenFramesDrawn: TestStep<RequiresNameOnly<"Context">> {
+    void step(auto world) {
+        auto& context = world.template getEntryByName<"Context">();
+        for (size_t i = 0; i < 10; i++) {
+            context.emit_sync(NewFrame{});
+        }
+    }
+};
+
 }
 

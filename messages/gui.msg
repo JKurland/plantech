@@ -9,6 +9,15 @@ request AddGuiElement[T] -> GuiHandle[T] {
     T element
 }
 
+request UpdateGuiElement[T] -> void {
+    GuiHandle[T] handle
+    T newElement
+}
+
+request GetGuiElement[T] -> option[T] {
+    GuiHandle[T] handle
+}
+
 event GuiElementMouseButton[ElemT] {
     MouseButton mouseEvent
     GuiHandle[ElemT] element

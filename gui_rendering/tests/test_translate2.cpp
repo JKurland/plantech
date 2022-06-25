@@ -39,3 +39,30 @@ TEST(TestTranslate, test_button_click_not_on_translated_button) {
         (Not(ThenButtonClickedEventIsEmitted<"Button">()))
         .run();
 }
+
+TEST(TestTranslate, test_draw_multiple_frames) {
+    setup()
+        (GivenAButton<"B">())
+        (WhenFramesDrawn())
+        // then it doesn't crash
+        .run();
+}
+
+TEST(TestTranslate, test_draw_multiple_buttons) {
+    setup()
+        (GivenAButton<"B">())
+        (GivenAButton<"A">())
+        // then it doesn't crash
+        .run();
+}
+
+TEST(TestTranslate, test_click_one_button_of_two) {
+    setup()
+        (GivenAButton<"A">())
+        (GivenAButton<"B">())
+        (GivenButtonsDoNotOverlap<"A", "B">())
+        (WhenButtonClicked<"A">())
+        (ThenButtonClickedEventIsEmitted<"A">())
+        (Not(ThenButtonClickedEventIsEmitted<"B">()))
+        .run();
+}

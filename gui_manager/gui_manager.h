@@ -56,6 +56,15 @@ public:
         co_return handle;
     }
 
+    TEMPLATE_REQUEST(UpdateGuiElement<T>, typename T) {
+        gui.get(request.handle) = request.newElement;
+        co_return;
+    }
+
+    TEMPLATE_REQUEST(GetGuiElement<T>, typename T) {
+        co_return gui.get(request.handle);
+    }
+
     REQUEST(GetGui) {
         co_return gui;
     }
