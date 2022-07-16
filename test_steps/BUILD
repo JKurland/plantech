@@ -4,5 +4,5 @@ cc_library(
     hdrs = glob(["*.h"]),
     visibility = ["//visibility:public"],
     copts = ["-Werror"],
-    deps = ["//test_utils", "//window", "//framework", "//core_messages"],
+    deps = ["//test_utils", "//window", "//framework", "//core_messages", "//project"],
 )

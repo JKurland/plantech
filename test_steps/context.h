@@ -75,7 +75,6 @@ public:
         context.addObserver(sentMessages.observer());
 
         context.emit_sync(ProgramStart{});
-        context.wait_for_all_events_to_finish();
         return this->worldUpdate(
             WorldEntry<"Context", Context<HandlerTs...>>{
                 std::move(context)
