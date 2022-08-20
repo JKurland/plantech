@@ -108,6 +108,174 @@ std::string dumpDataType(const module::DataType& dataType, const module::Module&
     );
 };
 
+// check if there's anything that would stop the default comparison ops from compiling
+bool canHaveComparisonOperators(const module::Message& message, const module::Module& module) {
+    for (const auto& member: message.members) {
+        const bool allowsComparisonOps = member.type.visit(
+            [](module::BuiltinType){return true;},
+            [&](module::MessageHandle handle){return canHaveComparisonOperators(module.getMessage(handle), module);},
+
+            // this means the message is a template so won't cause an error 
+            //unless the comparison ops are actually used
+            [](module::TemplateMemberType){return true;},
+            [](module::TemplateParameter){return true;},
+
+            // in future can add checks that all imported type have comparison ops but for now leave it
+            [](module::ImportedType){return false;},
+
+            // this one gets complicated, better not for now.
+            [](module::TemplateInstance){return false;},
+
+            [](module::ErrorDataType){return false;}
+        );
+
+        if (!allowsComparisonOps) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void declareMessage(const module::Message& message, std::string& header) {
+    if (message.templateParams) {
+        appendTemplateString(message, header);
+    }
+    header.append("struct ");
+    header.append(dumpItemName(message.name));
+    header.push_back(';');
+    header.push_back('\n');
+}
+
+
+void defineUnion(const module::Message& message, const module::Module& module, std::string& header) {
+    if (message.templateParams) {
+        appendTemplateString(message, header);
+    }
+
+    header.append("class ");
+    header.append(dumpItemName(message.name));
+    header.append(" {\n");
+
+    header.append("public:\n");
+    // enum class for the contained types
+    header.append("  enum class Type {\n");
+    
+    for (const auto& member: message.members) {
+        header.append("    ");
+        header.append(member.name);
+        header.append(",\n");
+    }
+
+    header.append("  };\n");
+
+    // public flag query
+    header.append("  Type type() const {return static_cast<Type>(v_.index());}\n");
+
+    // public accessors
+    {
+        size_t index = 0;
+        for (const auto& member: message.members) {
+            // non const accessor
+            header.append("  ");
+            header.append(dumpDataType(member.type, module));
+            header.append("& ");
+            header.append(member.name);
+            header.append("() {return std::get<");
+            header.append(std::to_string(index));
+            header.append(">(v_);}\n");
+
+            // const accessor
+            // non const accessor
+            header.append("  const ");
+            header.append(dumpDataType(member.type, module));
+            header.append("& ");
+            header.append(member.name);
+            header.append("() const {return std::get<");
+            header.append(std::to_string(index));
+            header.append(">(v_);}\n");
+
+            index++;
+        }
+    }
+
+    // equality
+    if (canHaveComparisonOperators(message, module)) {
+        header.append("bool operator==(const ");
+        header.append(dumpItemName(message.name));
+        header.append("&) const = default;\n");
+    }
+
+    header.append("private:\n");
+    // private variant member
+    header.append("  std::variant<");
+    {
+        bool doComma = false;
+        for (const auto& member: message.members) {
+            if (doComma) header.push_back(',');
+            doComma = true;
+            header.append(dumpDataType(member.type, module));
+        }
+    }
+
+    header.append("> v_;\n");
+
+    // close the class
+    header.append("};\n");
+}
+
+void defineData(const module::Message& message, const module::Module& module, std::string& header) {
+    if (message.templateParams) {
+        appendTemplateString(message, header);
+    }
+
+    header.append("struct ");
+    header.append(dumpItemName(message.name));
+    header.append(" {\n");
+    for (const auto& member: message.members) {
+        header.append("    ");
+        header.append(dumpDataType(member.type, module));
+        header.push_back(' ');
+        header.append(member.name);
+        header.append(";\n");
+    }
+
+    if (message.expectedResponse) {
+        header.append("    using ResponseT = ");
+        header.append(dumpDataType(*message.expectedResponse, module));
+        header.append(";\n");
+    }
+
+    const bool addComparison = canHaveComparisonOperators(message, module);
+
+    if (addComparison) {
+        header.append("auto operator<=>(const ");
+        header.append(dumpItemName(message.name));
+        header.append("&) const = default;\n");
+
+        header.append("bool operator==(const ");
+        header.append(dumpItemName(message.name));
+        header.append("&) const = default;\n");
+    }
+
+    header.append("};\n");
+}
+
+void defineMessage(const module::Message& message, const module::Module& module, std::string& header) {
+    switch (message.type) {
+        case module::MessageType::Data:
+        case module::MessageType::Event:
+        case module::MessageType::Request:
+            defineData(message, module, header);
+            break;
+        case module::MessageType::Union:
+            defineUnion(message, module, header);
+            break;
+        case module::MessageType::ErrorMessageType:
+            //unreachable
+            break;
+    }
+}
+
 CppSource genCpp(const module::Module& module, const std::vector<std::string>& includeHeaders, const std::vector<std::string>& systemHeaders) {
     std::string header;
 
@@ -116,6 +284,7 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
     header.append("#include <cstdint>\n");
     header.append("#include <vector>\n");
     header.append("#include <optional>\n");
+    header.append("#include <variant>\n");
 
     for (const auto& h: systemHeaders) {
         header.append("#include <");
@@ -135,15 +304,9 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
         header.append(" {\n");
     }
 
-    // for now just forward declare everything then define everything
+    // first forward declare everything
     for (const auto& message: module.messages()) {
-        if (message.templateParams) {
-            appendTemplateString(message, header);
-        }
-        header.append("struct ");
-        header.append(dumpItemName(message.name));
-        header.push_back(';');
-        header.push_back('\n');
+        declareMessage(message, header);
     }
 
     header.push_back('\n');
@@ -152,50 +315,7 @@ CppSource genCpp(const module::Module& module, const std::vector<std::string>& i
     std::vector<module::MessageHandle> messages = module.topologicalOrder();
     for (auto it = messages.rbegin(); it != messages.rend(); it++) {
         const auto& message = module.getMessage(*it);
-        if (message.templateParams) {
-            appendTemplateString(message, header);
-        }
-
-        header.append("struct ");
-        header.append(dumpItemName(message.name));
-        header.append(" {\n");
-        for (const auto& member: message.members) {
-            header.append("    ");
-            header.append(dumpDataType(member.type, module));
-            header.push_back(' ');
-            header.append(member.name);
-            header.append(";\n");
-        }
-
-        if (message.expectedResponse) {
-            header.append("    using ResponseT = ");
-            header.append(dumpDataType(*message.expectedResponse, module));
-            header.append(";\n");
-        }
-
-        // if this message has no imported members we can safely add comparison operators
-        const bool hasImportedMembers = [&]{
-            for (const auto& member: message.members) {
-                if (member.type.template is<module::ImportedType>()) {
-                    return true;
-                }
-            }
-            return false;
-        }();
-
-        if (!hasImportedMembers) {
-            header.append("auto operator<=>(const ");
-            header.append(dumpItemName(message.name));
-            header.append("&) const = default;\n");
-        }
-
-        if (!hasImportedMembers) {
-            header.append("bool operator==(const ");
-            header.append(dumpItemName(message.name));
-            header.append("&) const = default;\n");
-        }
-
-        header.append("};\n");
+        defineMessage(message, module, header);
     }
 
     if (module.withNamespace) {

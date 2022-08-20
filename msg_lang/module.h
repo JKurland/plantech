@@ -140,6 +140,7 @@ enum class MessageType {
     Event,
     Request,
     Data,
+    Union,
     ErrorMessageType
 };
 

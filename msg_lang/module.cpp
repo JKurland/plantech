@@ -233,6 +233,8 @@ private:
                             return MessageType::Request;
                         } else if (item.type.s == "data") {
                             return MessageType::Data;
+                        } else if (item.type.s == "union") {
+                            return MessageType::Union;
                         } else {
                             addError(Error{
                                 .message = "Invalid message type",
@@ -495,6 +497,7 @@ private:
 
             switch (message.type) {
                 case MessageType::Data:
+                case MessageType::Union:
                 case MessageType::Event: {
                     if (message.expectedResponse) {
                         addError(Error{
